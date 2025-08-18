@@ -1,0 +1,19 @@
+{
+  "name": "telephony-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Phone, SMS, and Email control on Android",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^0.1.0",
+    "child_process": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}

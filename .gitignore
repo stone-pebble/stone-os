@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build outputs
+*.apk
+*.aab
+build/
+dist/
+out/
+
+# Android
+.gradle/
+local.properties
+*.iml
+.idea/
+android/app/build/
+android/.gradle/
+
+# iOS
+ios/Pods/
+*.xcworkspace/
+*.xcuserstate
+
+# React Native
+.expo/
+.expo-shared/
+*.jsbundle
+.metro-health-check*
+
+# Environment variables
+.env.local
+.env.development
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# LiveKit
+livekit-server*
+*.tar.gz
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+*.sublime-*
+
+# SystemUI work
+SystemUI_decompiled/
+SystemUI_original.apk
+SystemUI_stone.apk
+*.keystore
+stone_patch.txt
+
+# Environment files with secrets
+stone-agent/.env
+.env
