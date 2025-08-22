@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-StoneOS is an AI-first mobile operating system that transforms Android by replacing the traditional application layer with a voice-driven interface powered by AI agents and the Model Context Protocol (MCP).
+StoneOS is a minimalist, AI-augmented Android experience that seamlessly integrates third-party apps with intelligent agents. It's not voice-first, but **choice-first**: Users can interact via touch OR conversational AI, switching seamlessly between both.
 
 **CRITICAL: We are using OPTION C - SystemUI Modification**
 - NOT just making an app - we are CHANGING THE ANDROID OS
@@ -88,24 +88,32 @@ AI agents handle user intents through:
 
 ## Repository Structure
 
-This codebase contains comprehensive documentation for StoneOS but **no implementation code yet** - the project is in architecture and planning phase.
+### Current Implementation Status
+The project has transitioned from documentation to active development. Core components are being built following the Option C approach (SystemUI modification).
 
-### Documentation Organization
+### Active Development Files
 ```
 /
-├── architecture/          # System design and technical specs
-│   ├── README.md         # Architecture overview
-│   └── mcp-architecture.md # Dual MCP system design
-├── agents/               # AI agent specs and MCP integration
-├── development/          # Build setup and workflow
-├── integration/          # Third-party app integration guides  
-├── patches/              # AOSP patch documentation
-├── security/             # Security architecture
-├── ui/                   # React Native shell specs
-├── EXECUTIVE_SUMMARY.md  # Project vision and strategy
-├── FEATURES.md          # Core feature specifications
-├── ROADMAP.md           # Development timeline
-└── README.md            # Project overview
+├── SystemUI_original.apk      # Extracted from Pixel 8a
+├── SystemUI_decompiled/        # Decompiled SystemUI for modification
+├── systemui-mod.sh            # Script to modify SystemUI
+├── install-systemui.sh        # Script to install modified SystemUI
+├── stone-launcher/            # React Native launcher (main UI)
+│   ├── src/screens/          # App screens (Home, Listen, etc.)
+│   ├── src/components/       # StoneIcon, StoneChat components
+│   └── package.json          # Dependencies including LiveKit
+├── stone-agent/              # Unified AI agent with LiveKit
+│   └── package.json         # TypeScript agents configuration
+├── mcp-servers/             # MCP implementations for each app
+│   ├── spotify-mcp/
+│   ├── maps-mcp/
+│   ├── telephony-mcp/
+│   ├── calendar-mcp/
+│   └── notion-mcp/
+├── STONEOS_SPECS.md        # Complete feature specifications
+├── SYSTEMUI_STATUS.md      # Current SystemUI modification status
+├── NEXT_STEPS.md          # Immediate action items
+└── README.md              # Project overview
 ```
 
 ### Key Architectural Concepts
@@ -184,85 +192,118 @@ Voice Input → LiveKit Agent → MCP Tools → Master Control Program → Nativ
 
 ### Common Build Commands
 
-#### SystemUI Modification (OPTION C - PRIMARY APPROACH)
+#### 1. SystemUI Modification (OPTION C - PRIMARY APPROACH)
 ```bash
 # Extract SystemUI from device
-adb pull /system_ext/priv-app/SystemUI/SystemUI.apk
+adb pull /system_ext/priv-app/SystemUI/SystemUI.apk SystemUI_original.apk
 
 # Decompile SystemUI
-apktool d SystemUI.apk -o SystemUI
+apktool d SystemUI_original.apk -o SystemUI_decompiled
 
-# After modifications, rebuild
-apktool b SystemUI -o SystemUI_modified.apk
+# Modify SystemUI (automated by script)
+./systemui-mod.sh
 
-# Sign with platform key (required!)
-java -jar signapk.jar platform.x509.pem platform.pk8 SystemUI_modified.apk SystemUI_signed.apk
+# Install modified SystemUI (DANGEROUS - have recovery ready)
+./install-systemui.sh
 
-# Replace SystemUI (DANGEROUS - have recovery ready)
-adb push SystemUI_signed.apk /sdcard/
-adb shell "su -c 'mount -o rw,remount /system_ext'"
-adb shell "su -c 'cp /sdcard/SystemUI_signed.apk /system_ext/priv-app/SystemUI/SystemUI.apk'"
-adb shell "su -c 'chmod 644 /system_ext/priv-app/SystemUI/SystemUI.apk'"
-adb reboot
+# Check if modification is working
+adb logcat | grep StoneOS
 ```
 
-#### Root Setup for Pixel 8
+#### 2. Root Setup for Pixel 8a
 ```bash
 # Unlock bootloader (WIPES DEVICE!)
 adb reboot bootloader
 fastboot flashing unlock
 
-# Flash Magisk patched boot image
-fastboot flash init_boot magisk_patched.img
-fastboot reboot
+# Use Magisk app on device for Direct Install
+# Open Magisk app → Install → Direct Install → Reboot
+
+# Verify root access
+adb shell su -c 'whoami'  # Should output: root
 ```
 
-#### Future: AOSP Build Setup (Deferred)
+#### 3. Stone Launcher Development
 ```bash
-# When ready for full AOSP approach:
-source build/envsetup.sh
-lunch stoneos_pixel8a-userdebug
-make -j$(nproc) dist
-```
-
-#### Component-Specific Builds
-```bash
-# Build Master Control Program
-cd ~/stoneos-workspace/mcp
-./gradlew build
-cp build/outputs/*.jar ../aosp/vendor/pebble/mcp/
-
-# Build React Native UI
-cd ~/stoneos-workspace/ui
+# Build and install launcher
+cd stone-launcher
 npm install
 npm run build:android
-npx react-native bundle --platform android --dev false --entry-file index.js \
-    --bundle-output ../aosp/vendor/pebble/ui/bundle.js \
-    --assets-dest ../aosp/vendor/pebble/ui/assets
+npm run install:device
 
-# Build AI agents
-cd ~/stoneos-workspace/agents
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python test_agent.py
+# Set as default launcher
+adb shell cmd package set-home-activity com.stonelauncher/.MainActivity
+
+# Debug launcher
+adb logcat | grep -E "StoneOS|ReactNative"
+
+# Hot reload during development
+npm start  # In one terminal
+npm run android  # In another terminal
 ```
 
-#### Device Commands
+#### 4. Stone Agent (LiveKit Integration)
 ```bash
-# Flash StoneOS to device
-fastboot flashall -w
+# Build TypeScript agents
+cd stone-agent
+npm install
+npm run build
 
-# Quick development cycle commands
-adb root && adb remount
-adb push build/android/* /system/app/StoneUI/
-adb shell am force-stop com.stoneos.ui
-adb shell am start com.stoneos.ui/.MainActivity
+# Start individual agents
+npm run start:stone   # Main Stone agent
+npm run start:go      # Maps agent
+npm run start:listen  # Spotify agent
 
-# Debug and monitoring
-adb logcat -s StoneOS:* MCP:* StoneUI:* Agent:*
-adb shell dumpsys mcp
-adb bugreport stoneos-bugreport.zip
+# Start all agents
+npm run start:all
+
+# Test locally
+npm test
+```
+
+#### 5. MCP Server Development
+```bash
+# Start individual MCP servers
+cd mcp-servers/spotify-mcp && npm start
+cd mcp-servers/maps-mcp && npm start
+cd mcp-servers/telephony-mcp && npm start
+cd mcp-servers/calendar-mcp && npm start
+cd mcp-servers/notion-mcp && npm start
+
+# Test MCP integration
+curl -X POST http://localhost:3000/execute \
+  -H "Content-Type: application/json" \
+  -d '{"tool": "play_song", "params": {"query": "test"}}'
+```
+
+#### 6. LiveKit Server on Device
+```bash
+# Push LiveKit server to device
+adb push livekit-server-arm64 /data/local/tmp/
+adb shell chmod +x /data/local/tmp/livekit-server
+
+# Start LiveKit server on device
+adb shell "/data/local/tmp/livekit-server --dev --port 7880"
+
+# Port forward for local testing
+adb forward tcp:7880 tcp:7880
+```
+
+#### 7. Testing & Debugging
+```bash
+# Monitor all StoneOS components
+adb logcat -s StoneOS:* Stone:* MCP:* LiveKit:*
+
+# Clear app data and restart
+adb shell pm clear com.stonelauncher
+adb shell am start com.stonelauncher/.MainActivity
+
+# Take screenshot for debugging
+adb shell screencap -p /sdcard/screen.png
+adb pull /sdcard/screen.png
+
+# Check running services
+adb shell dumpsys activity services | grep -i stone
 ```
 
 ### Build Process
@@ -275,14 +316,14 @@ AOSP builds require significant resources and time:
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: Cross-component interaction testing  
 - **System Tests**: Full OS functionality validation
-- **Device Tests**: Real hardware testing on Pixel devices
+- **Device Tests**: Real hardware testing on Pixel 8a
 - **Performance Tests**: Voice latency, battery life, memory usage
 
 ### Quality Assurance
-- Automated testing pipeline for all changes
-- Manual testing on target hardware
-- Performance benchmarking and regression testing
-- Security audit and penetration testing
+- Always test SystemUI modifications with recovery method ready
+- Manual testing on Pixel 8a hardware
+- Monitor logs with `adb logcat | grep StoneOS`
+- Verify root access before system modifications
 
 ## Technical Constraints
 
@@ -311,3 +352,32 @@ AOSP builds require significant resources and time:
 - Integration with IoT and smart home devices
 - Advanced AI capabilities and model updates
 - Developer SDK for MCP agent creation
+
+## Key Development Principles
+
+### Core Implementation Approach
+- **OPTION C is the way**: Modify SystemUI directly, not AOSP build
+- **Real device testing**: Pixel 8a with unlocked bootloader
+- **Root required**: Use Magisk for system-level access
+- **Grayscale everything**: System-wide grayscale (except camera/images)
+- **Real apps, not web views**: Embed actual Android apps
+
+### Development Philosophy
+- **Don't take shortcuts**: Follow the specs exactly as written
+- **Test on real hardware**: Not emulators
+- **SystemUI modification is dangerous**: Always have recovery ready
+- **Stone icon always visible**: Bottom of screen in all apps
+- **Choice-first, not voice-first**: User chooses interaction method
+
+### Next Session Priorities
+1. **Get root working**: Magisk Direct Install on device
+2. **Test SystemUI replacement**: Run systemui-mod.sh and install-systemui.sh
+3. **Install Stone launcher**: Replace default home screen
+4. **Verify chat overlay**: Swipe-up from Stone icon
+
+### Important Files to Reference
+- `STONEOS_SPECS.md`: The complete feature specifications (source of truth)
+- `SYSTEMUI_STATUS.md`: Current SystemUI modification progress
+- `NEXT_STEPS.md`: Immediate action items for development
+- `systemui-mod.sh`: Script to modify SystemUI
+- `install-systemui.sh`: Script to install modified SystemUI
