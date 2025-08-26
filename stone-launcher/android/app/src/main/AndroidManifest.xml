@@ -1,9 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+<<<<<<< Updated upstream
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+=======
+>>>>>>> Stashed changes
 
     <application
       android:name=".MainApplication"
@@ -22,8 +25,11 @@
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+<<<<<<< Updated upstream
             <category android:name="android.intent.category.HOME" />
             <category android:name="android.intent.category.DEFAULT" />
+=======
+>>>>>>> Stashed changes
         </intent-filter>
       </activity>
     </application>
