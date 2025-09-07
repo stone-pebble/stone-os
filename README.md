@@ -61,7 +61,7 @@ gcloud compute ssh aosp-build --zone=us-central1-a
 # 3. Download AOSP
 mkdir ~/aosp && cd ~/aosp
 repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0_r61
-repo sync -c -j8
+repo sync -c -j4
 
 # 4. Build with CORRECT config
 source build/envsetup.sh

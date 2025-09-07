@@ -39,7 +39,7 @@ gcloud compute ssh aosp-build --zone=us-central1-a --command "
     # Download AOSP
     mkdir -p ~/aosp && cd ~/aosp
     repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0_r61 --depth=1
-    repo sync -c -j8 --no-tags --no-clone-bundle
+    repo sync -c -j4 --no-tags --no-clone-bundle --current-branch
 
     echo 'AOSP download complete!'
 "

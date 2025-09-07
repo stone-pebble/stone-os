@@ -28,6 +28,7 @@ public class StonePanel extends FrameLayout {
     private static final float PANEL_HEIGHT_RATIO = 0.33f; // 1/3 of screen
     private static final int ANIMATION_DURATION = 300; // milliseconds
     private static final String STONE_CHAT_URL = "http://localhost:8080/chat";
+    private static final String STONE_VERSION = "StoneOS v0.1.0-dev";
     
     private WebView mChatWebView;
     private View mHandleBar;
@@ -160,6 +161,8 @@ public class StonePanel extends FrameLayout {
      */
     public void show() {
         if (mIsExpanded) return;
+        
+        android.util.Log.d(TAG, "StoneOS: Showing Stone Panel - " + STONE_VERSION);
         
         ValueAnimator animator = ValueAnimator.ofFloat(mScreenHeight, mScreenHeight * (1 - PANEL_HEIGHT_RATIO));
         animator.setDuration(ANIMATION_DURATION);
