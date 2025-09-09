@@ -1,0 +1,39 @@
+{
+  "name": "stoneos-agents",
+  "version": "1.0.0",
+  "description": "StoneOS TypeScript agents using LiveKit",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "start:stone": "node dist/stone-livekit.js",
+    "start:go": "node dist/go.js",
+    "start:listen": "node dist/listen.js",
+    "start:ask": "node dist/ask-livekit.js",
+    "start:think": "node dist/think-livekit.js",
+    "start:all": "npm run start:stone & npm run start:go & npm run start:listen & npm run start:ask & npm run start:think",
+    "test": "./test-local.sh",
+    "deploy": "./deploy.sh"
+  },
+  "dependencies": {
+    "@livekit/agents": "^0.7.9",
+    "@livekit/agents-plugin-deepgram": "^0.5.7",
+    "@livekit/agents-plugin-openai": "^0.9.3",
+    "@livekit/agents-plugin-silero": "^0.5.7",
+    "@livekit/rtc-node": "^0.13.12",
+    "dotenv": "^16.5.0",
+    "livekit-client": "^2.15.4",
+    "livekit-server-sdk": "^2.13.2",
+    "mem0ai": "^1.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "@types/uuid": "^9.0.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.5.3",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
