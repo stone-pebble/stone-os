@@ -1,0 +1,9 @@
+{
+  "workingDirectory": "/home/samuellarson/stone-os",
+  "buildCommand": "cd ~/aosp && source build/envsetup.sh && lunch aosp_x86_64-ap2a-eng && m SystemUI -j16",
+  "testCommand": "cd ~/aosp && adb devices",
+  "environment": {
+    "AOSP_ROOT": "/home/samuellarson/aosp",
+    "STONE_ROOT": "/home/samuellarson/stone-os"
+  }
+}
