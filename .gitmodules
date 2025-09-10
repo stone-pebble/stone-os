@@ -1,0 +1,3 @@
+[submodule "development/fork-workspace/stoneos-frameworks"]
+	path = development/fork-workspace/stoneos-frameworks
+	url = https://github.com/stone-pebble/stoneos-frameworks.git
