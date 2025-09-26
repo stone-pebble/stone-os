@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- StoneOS Local Manifest -->
+  <!-- This tells the AOSP build system to use our forked frameworks/base instead of Google's -->
+  
+  <!-- Remove Google's frameworks/base -->
+  <remove-project name="platform/frameworks/base" />
+  
+  <!-- Add StoneOS's forked frameworks/base with Stone SystemUI components -->
+  <project name="stone-pebble/stoneos-frameworks" 
+           path="frameworks/base" 
+           remote="github" 
+           revision="android-14.0.0_r61" />
+           
+  <!-- Define GitHub remote -->
+  <remote name="github"
+          fetch="https://github.com/" />
+</manifest>

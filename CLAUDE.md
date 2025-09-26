@@ -190,6 +190,62 @@ Voice Input → LiveKit Agent → MCP Tools → Master Control Program → Nativ
 
 ## Development Workflow
 
+### Key Build System Understanding (Sept 8-9, 2024 Sessions)
+
+#### Critical Discovery: Why Stone Classes Weren't Being Included
+1. **Build System Caching**: Soong caches file lists at parse time, not build time
+2. **Glob Pattern Timing**: `"src/**/*.java"` evaluated BEFORE we copy files
+3. **SystemUI Structure**: Uses SystemUI-core library, not direct app sources
+4. **Root Cause**: AOSP's build system evaluates glob patterns like `"src/**/*.java"` at **parse time**, not build time - files must exist BEFORE the build system starts
+
+#### Failed Approaches and Why
+
+1. **Device Overlays (DEVICE_PACKAGE_OVERLAYS)**
+   - **What we tried**: Created device tree with overlay structure
+   - **Why it failed**: Device overlays ONLY work for resources (XML, images), NOT Java/Kotlin code
+   - **Key learning**: This is by design in AOSP - overlays are for customizing resources, not adding new code
+
+2. **LineageOS Glob Pattern Approach**
+   - **What we tried**: Dropped files in src/ expecting glob pattern to pick them up
+   - **Why it failed**: Glob patterns are evaluated when build system initializes, not during compilation
+   - **Evidence**: Build succeeded but Stone classes weren't in the APK
+
+3. **Direct Android.bp Patching with sed**
+   - **What we tried**: Used sed to add Stone files to srcs array
+   - **Why it failed**: Pattern didn't match actual Android.bp formatting, files still not included
+
+4. **Android.mk Modification**
+   - **What we tried**: Created Android.mk with LOCAL_SRC_FILES
+   - **Why it failed**: SystemUI uses Android.bp (Soong), not Android.mk (Make)
+
+#### THE SOLUTION THAT WORKS: Fork AOSP Like LineageOS
+
+**Date**: Sept 9, 2024  
+**Approach**: Fork frameworks/base and add Stone files BEFORE build system initialization
+
+**What we did:**
+1. Forked https://github.com/aosp-mirror/platform_frameworks_base to stone-pebble/stoneos-frameworks
+2. Added Stone files directly to the fork at `packages/SystemUI/src/com/android/systemui/stone/`
+3. Created local manifest to replace Google's frameworks/base with our fork:
+```xml
+<manifest>
+  <remove-project name="platform/frameworks/base" />
+  <project name="stone-pebble/stoneos-frameworks" 
+           path="frameworks/base" 
+           remote="github" 
+           revision="android-14.0.0_r61" />
+</manifest>
+```
+
+**Why this works:**
+- **Files exist BEFORE build system starts** - This is critical!
+- **Glob patterns find the files** because they're already in the source tree
+- **This is how LineageOS does it** - They fork repos and add their customizations
+- **No patching needed** - Files are part of the source from the beginning
+
+**Key Learning:**
+The Android build system is designed for forks, not runtime modifications. Google expects device manufacturers to fork AOSP repos and add their customizations directly.
+
 ### Common Build Commands
 
 #### 1. SystemUI Modification (OPTION C - PRIMARY APPROACH)
@@ -210,21 +266,32 @@ apktool d SystemUI_original.apk -o SystemUI_decompiled
 adb logcat | grep StoneOS
 ```
 
-#### 2. AOSP Build (CRITICAL - PROVEN WORKING CONFIGURATION)
+#### 2. AOSP Build (CRITICAL - PROVEN WORKING CONFIGURATION WITH FORK)
 ```bash
 # Download AOSP
 mkdir ~/aosp && cd ~/aosp
 repo init -u https://android.googlesource.com/platform/manifest -b android-14.0.0_r61 --depth=1
-repo sync -c -j4 --no-tags --no-clone-bundle --current-branch
 
-# Add Stone modifications BEFORE building
-mkdir -p frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
-cp /tmp/stone/stone/*.java frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+# Add local manifest to use forked frameworks/base
+mkdir -p .repo/local_manifests
+cat > .repo/local_manifests/stoneos.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remove-project name="platform/frameworks/base" />
+  <project name="stone-pebble/stoneos-frameworks" 
+           path="frameworks/base" 
+           remote="github" 
+           revision="android-14.0.0_r61" />
+  <remote name="github" fetch="https://github.com/" />
+</manifest>
+EOF
+
+# Sync with our fork included
+repo sync -c -j4 --no-tags --no-clone-bundle --current-branch
 
 # Build with CORRECT config
 source build/envsetup.sh
 lunch aosp_x86_64-ap2a-eng  # For Android 14 - NOT trunk_staging!
-lunch aosp_x86_64-ap3a-eng  # For Android 15 - NOT trunk_staging!
 m SystemUI -j8
 
 # Output location
@@ -434,6 +501,10 @@ Location: `frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp`
 2. **x86 VM on Mac** - Too slow (emulated), network issues  
 3. **Docker on Mac** - x86 emulation very slow on Apple Silicon
 4. **Wrong lunch target** - `trunk_staging` is Google internal only
+5. **Device Overlays for Java** - Only work for resources, not code
+6. **Dropping files after repo sync** - Glob patterns already evaluated
+7. **Patching Android.bp** - Too fragile, doesn't reliably work
+8. **Android.mk for SystemUI** - SystemUI uses Soong (Android.bp) not Make
 
 ### Critical Build Requirements
 - **MUST use `-j4` for repo sync** - Higher causes HTTP 429 rate limiting
@@ -456,6 +527,138 @@ Location: `frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp`
 - Integration with IoT and smart home devices
 - Advanced AI capabilities and model updates
 - Developer SDK for MCP agent creation
+
+## Stone Classes Compilation Issue & Solution
+
+### The Problem (Sept 9, 2024)
+Despite successfully forking frameworks/base and having Stone files present in the source tree, the Stone classes are not being compiled into SystemUI.apk.
+
+**Evidence:**
+- Files ARE present: `/home/samuellarson/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/`
+- Build succeeds without errors
+- APK is generated (43MB)
+- But Stone classes are NOT in the final APK
+
+### Root Cause
+SystemUI is not a single module but a collection of libraries. Our Stone files need proper module integration in Android.bp. Simply having files in the source tree isn't enough - they must be explicitly included in a module.
+
+### THE SOLUTION: Modify Android.bp in Fork
+
+**Option 1: Add Stone as Separate Module (RECOMMENDED)**
+```java
+// In packages/SystemUI/Android.bp, add:
+android_library {
+    name: "SystemUI-stone",
+    srcs: [
+        "src/com/android/systemui/stone/*.java",
+    ],
+    static_libs: [
+        "SystemUI-core",
+    ],
+}
+
+// Then include it in SystemUI app:
+android_app {
+    name: "SystemUI",
+    static_libs: [
+        "SystemUI-stone",  // Add this line
+        "SystemUI-core",
+        // ... other libs
+    ],
+}
+```
+
+**Option 2: Explicitly List Files**
+```java
+android_library {
+    name: "SystemUI-core",
+    srcs: [
+        "src/**/*.kt",
+        "src/**/*.java",
+        "src/**/I*.aidl",
+        // Add these lines:
+        "src/com/android/systemui/stone/StonePanel.java",
+        "src/com/android/systemui/stone/StoneIcon.java",
+        ":ReleaseJavaFiles",
+    ],
+}
+```
+
+**Option 3: Use a Filegroup**
+```java
+filegroup {
+    name: "StoneFiles",
+    srcs: [
+        "src/com/android/systemui/stone/*.java",
+    ],
+}
+
+android_library {
+    name: "SystemUI-core",
+    srcs: [
+        "src/**/*.kt",
+        "src/**/*.java",
+        ":StoneFiles",  // Add this
+    ],
+}
+```
+
+## Failed Approaches (Learn from Our Mistakes)
+
+### 1. Device Overlays (Sept 7-8, 2024)
+**What we tried:** Use DEVICE_PACKAGE_OVERLAYS to add Stone files
+```bash
+DEVICE_PACKAGE_OVERLAYS += device/stone/stoneos/overlay
+```
+**Why it failed:** Device overlays ONLY work for resources (XML, images), NOT Java/Kotlin code. This is by design in AOSP.
+
+### 2. LineageOS Glob Pattern Approach (Sept 8, 2024)
+**What we tried:** Drop files in src/ expecting glob pattern to pick them up
+**Why it failed:** Glob patterns are evaluated at parse time, not build time. Files added after repo sync aren't included.
+
+### 3. Direct Android.mk Modification
+**What we tried:** Create Android.mk with LOCAL_SRC_FILES
+**Why it failed:** SystemUI uses Android.bp (Soong), not Android.mk (Make)
+
+### 4. Custom Lunch Target
+**What we tried:** Define custom lunch target without full device tree
+**Why it failed:** Custom lunch targets require complete device configuration
+
+## Implementation Plan
+
+### Phase 1: Fix Android.bp in Fork (CURRENT)
+1. Clone fork locally
+2. Modify Android.bp to include Stone module
+3. Push changes to GitHub
+4. Run clean build with updated fork
+
+### Phase 2: Core SystemUI Modifications
+- Implement swipe-up gesture from Stone icon
+- Create chat interface layout (1/3 screen)
+- Implement window management for 2/3 app view
+
+### Phase 3: Grayscale System
+- Add ColorMatrixFilter to SurfaceFlinger
+- Apply system-wide grayscale (except camera/photos)
+
+### Phase 4: Testing with Cuttlefish
+```bash
+# On GCP build instance after build completes
+sudo apt install -y git devscripts equivs config-package-dev debhelper-compat golang curl
+
+# Build Cuttlefish packages
+git clone https://github.com/google/android-cuttlefish
+cd android-cuttlefish
+debuild -i -us -uc -b
+sudo dpkg -i ../cuttlefish-*.deb
+
+# Launch with our build
+launch_cvd --daemon \
+  --system_image_dir=$HOME/aosp/out/target/product/generic_x86_64 \
+  --kernel_path=$HOME/aosp/out/target/product/generic_x86_64/kernel
+
+# Access via browser at https://localhost:8443
+```
 
 ## Current Build Status (Sept 6, 2024 Night Session)
 
@@ -579,9 +782,6 @@ adb logcat | grep -E "StoneOS|StonePanel|StoneIcon"
 
 ### Important Files to Reference
 - `STONEOS_SPECS.md`: The complete feature specifications (source of truth)
-- `SYSTEMUI_STATUS.md`: Current SystemUI modification progress
-- `NEXT_STEPS.md`: Immediate action items for development
-- `systemui-mod.sh`: Script to modify SystemUI
-- `install-systemui.sh`: Script to install modified SystemUI
-- `AOSP_BUILD_FIX.md`: Critical fixes for AOSP build errors
-- `NEXT_AGENT_INSTRUCTIONS.md`: What we learned from failed attempts
+- `THIRD_PARTY_APPS_SOLUTION.md`: How to get apps working on StoneOS
+- `android_bp_fix.md`: Proper way to modify Android.bp for Stone classes
+- `build_stoneos.sh`: Main build script (now with fixed Android.bp patching)

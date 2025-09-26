@@ -199,13 +199,8 @@ build_on_gcp() {
         echo 'Build environment ready!'
     "
     
-    # Upload Stone components
-    print_info "Uploading Stone SystemUI components..."
-    gcloud compute ssh $INSTANCE_NAME --zone=$ZONE --command="mkdir -p /tmp/stone"
-    gcloud compute scp --recurse \
-        $LOCAL_DIR/SystemUI/stone/* \
-        $INSTANCE_NAME:/tmp/stone/ \
-        --zone=$ZONE
+    # No need to upload Stone components - they're in our fork now
+    print_info "Stone components will be downloaded from forked repository..."
     
     # Create build script
     cat > /tmp/build_script.sh << 'BUILDSCRIPT'
@@ -221,63 +216,74 @@ mkdir -p aosp && cd aosp
 repo init -u https://android.googlesource.com/platform/manifest \
     -b AOSP_BRANCH_PLACEHOLDER --depth=1
 
+# Add StoneOS local manifest to use our forked frameworks/base
+echo "[2/3] Adding StoneOS manifest..."
+mkdir -p .repo/local_manifests
+cat > .repo/local_manifests/stoneos.xml << 'MANIFEST'
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- StoneOS Local Manifest -->
+  <!-- This tells the AOSP build system to use our forked frameworks/base instead of Google's -->
+  
+  <!-- Remove Google's frameworks/base -->
+  <remove-project name="platform/frameworks/base" />
+  
+  <!-- Add StoneOS's forked frameworks/base with Stone SystemUI components -->
+  <project name="stone-pebble/stoneos-frameworks" 
+           path="frameworks/base" 
+           remote="github" 
+           revision="android-14.0.0_r61" />
+           
+  <!-- Define GitHub remote -->
+  <remote name="github"
+          fetch="https://github.com/" />
+</manifest>
+MANIFEST
+
 # Use -j4 to avoid rate limiting (learned from manual testing)
-echo "Downloading AOSP (this takes ~15 minutes)..."
+echo "Downloading AOSP with StoneOS fork (this takes ~15 minutes)..."
 repo sync -c -j4 --no-tags --no-clone-bundle --current-branch --fail-fast || {
     echo "First sync attempt failed, retrying..."
     sleep 5
     repo sync -c -j4 --no-tags --no-clone-bundle --current-branch
 }
 
-# Integrate Stone components into AOSP
-echo "[2/3] Integrating Stone components..."
-cd $HOME/aosp
-mkdir -p frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+# Verify Stone files are present from our fork
+echo "Verifying Stone components from fork..."
+if [ -f "frameworks/base/packages/SystemUI/src/com/android/systemui/stone/StonePanel.java" ] && \
+   [ -f "frameworks/base/packages/SystemUI/src/com/android/systemui/stone/StoneIcon.java" ]; then
+    echo "✅ Stone components found in forked SystemUI!"
+    ls -la frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+else
+    echo "❌ ERROR: Stone components not found in fork!"
+    exit 1
+fi
 
-# Copy Stone files and verify
-echo "Copying Stone files..."
-cp /tmp/stone/*.java \
-    frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+cd $HOME/aosp
+
+# No longer creating device overlay since it doesn't work for Java files
+
+# Clean build cache to force re-scan
+echo "Cleaning build cache..."
+rm -rf out/soong/.intermediates/frameworks/base/packages/SystemUI/ 2>/dev/null || true
 
 # Verify files were copied
 echo "Verifying Stone integration..."
 if [ -f "frameworks/base/packages/SystemUI/src/com/android/systemui/stone/StonePanel.java" ] && \
    [ -f "frameworks/base/packages/SystemUI/src/com/android/systemui/stone/StoneIcon.java" ]; then
-    echo "✓ Stone files successfully integrated"
+    echo "✓ Stone files successfully copied to SystemUI source"
     ls -la frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
 else
-    echo "✗ ERROR: Stone files not found after copy!"
+    echo "✗ ERROR: Stone files not found in SystemUI source!"
     echo "Contents of /tmp/stone:"
     ls -la /tmp/stone/
     exit 1
 fi
 
-# CRITICAL: Update Android.bp to include Stone classes in the build
-echo "Patching Android.bp to include Stone classes..."
-cd frameworks/base/packages/SystemUI/
-
-# Backup original
-cp Android.bp Android.bp.backup
-
-# Add Stone sources to build - find the srcs section and add our files
-sed -i '/srcs: \[/,/\]/ {
-    /"src\/\*\*\/\*.kt",/a\
-        "src/com/android/systemui/stone/*.java",
-}' Android.bp
-
-# Verify the patch worked
-if grep -q "stone/\*.java" Android.bp; then
-    echo "✓ Android.bp successfully patched"
-else
-    echo "⚠ Warning: Android.bp patch may have failed, trying alternative method..."
-    # Alternative: Add it manually at a known location
-    sed -i 's|"src/\*\*/\*.kt",|"src/\*\*/\*.kt",\n        "src/com/android/systemui/stone/\*.java",|' Android.bp
-fi
-
 cd $HOME/aosp
 
 # Build
-echo "[3/3] Building SystemUI..."
+echo "[3/3] Building SystemUI with Stone classes..."
 source build/envsetup.sh
 lunch aosp_x86_64-ap2a-eng  # Android 14 QPR2 - for emulator testing
 # For Pixel 8a device: lunch aosp_akita-userdebug (requires vendor binaries)
@@ -286,9 +292,23 @@ lunch aosp_x86_64-ap2a-eng  # Android 14 QPR2 - for emulator testing
 echo "Building SystemUI (this takes ~10-15 minutes with 32 cores)..."
 m SystemUI -j16 2>&1 | tee /tmp/build_output.log
 
-# Verify APK was created
+# Verify APK was created and contains Stone classes
 if [ -f out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk ]; then
     echo "APK successfully built!"
+    
+    # Verify Stone classes are in the APK
+    echo "Verifying Stone classes in APK..."
+    cd /tmp
+    cp $HOME/aosp/out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk .
+    unzip -q SystemUI.apk
+    if dexdump classes*.dex 2>/dev/null | grep -q "StonePanel"; then
+        echo "✅ SUCCESS: Stone classes found in SystemUI.apk!"
+        touch /tmp/stone_integrated_success
+    else
+        echo "⚠️ WARNING: Stone classes NOT found in APK"
+        echo "Build completed but Stone integration may have failed"
+    fi
+    cd $HOME/aosp
     cp out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk \
         /tmp/StoneOS_SystemUI.apk
     
