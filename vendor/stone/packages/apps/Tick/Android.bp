@@ -1,0 +1,23 @@
+android_app {
+    name: "Tick",
+
+    srcs: ["src/com/stoneos/tick/*.java"],
+
+    resource_dirs: ["res"],
+
+    platform_apis: true,
+
+    privileged: true,
+
+    certificate: "platform",
+
+    system_ext_specific: true,
+
+    optimize: {
+        enabled: true,
+    },
+
+    dex_preopt: {
+        enabled: true,
+    },
+}

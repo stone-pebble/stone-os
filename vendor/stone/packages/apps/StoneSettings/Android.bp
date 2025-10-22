@@ -1,0 +1,40 @@
+// StoneSettings - Settings app for StoneOS with agent control API
+// Built as a privileged system app
+
+android_app {
+    name: "StoneSettings",
+
+    // Source code
+    srcs: [
+        "src/com/stoneos/settings/*.java",
+    ],
+
+    // Resource directories
+    resource_dirs: ["res"],
+
+    // Manifest file
+    manifest: "AndroidManifest.xml",
+
+    // Platform-level privileges
+    platform_apis: true,
+    privileged: true,
+    certificate: "platform",
+
+    // Build as a system app
+    system_ext_specific: true,
+
+    // Optimization
+    optimize: {
+        enabled: true,
+        shrink: true,
+        proguard_flags_files: [],
+    },
+
+    // DEX preoptimization for faster boot
+    dex_preopt: {
+        enabled: true,
+    },
+
+    // Static libraries (if needed in the future)
+    static_libs: [],
+}

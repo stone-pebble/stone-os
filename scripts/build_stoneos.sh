@@ -9,7 +9,7 @@ set -e
 PROJECT="dev-stone"
 ZONE="us-central1-a"
 MACHINE_TYPE="n2-standard-32"  # 32 vCPUs, 128GB RAM - FASTER BUILD!
-LOCAL_DIR="/Users/samuellarson/Pebble/Github/stone-os"
+LOCAL_DIR="/home/samuellarson/stone-os"
 AOSP_BRANCH="android-14.0.0_r61"  # Android 14 QPR2 - compatible with Pixel 8a (akita)
 S3_BUCKET="stoneos-builds"  # Optional S3 storage
 

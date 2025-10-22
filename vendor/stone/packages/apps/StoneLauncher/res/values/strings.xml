@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Application name -->
+    <string name="app_name">Stone</string>
+
+    <!-- StoneOS App Names (3x4 grid) -->
+    <string name="app_listen">LISTEN</string>
+    <string name="app_go">GO</string>
+    <string name="app_ask">ASK</string>
+    <string name="app_task">TASK</string>
+    <string name="app_set">SET</string>
+    <string name="app_tick">TICK</string>
+    <string name="app_look">LOOK</string>
+    <string name="app_plan">PLAN</string>
+    <string name="app_think">THINK</string>
+    <string name="app_connect">CONNECT</string>
+    <string name="app_fund">FUND</string>
+    <string name="app_reflect">REFLECT</string>
+
+    <!-- Error messages -->
+    <string name="app_not_installed">App not installed</string>
+</resources>

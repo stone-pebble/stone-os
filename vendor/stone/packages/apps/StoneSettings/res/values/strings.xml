@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name -->
+    <string name="app_name">Settings</string>
+
+    <!-- Main categories -->
+    <string name="network_settings">Network &amp; internet</string>
+    <string name="connected_devices">Connected devices</string>
+    <string name="display_settings">Display</string>
+    <string name="sound_settings">Sound &amp; vibration</string>
+    <string name="storage_settings">Storage</string>
+    <string name="security_settings">Security &amp; privacy</string>
+    <string name="system_settings">System</string>
+
+    <!-- Display settings -->
+    <string name="brightness">Brightness</string>
+    <string name="adaptive_brightness">Adaptive brightness</string>
+    <string name="adaptive_brightness_desc">Automatically adjust brightness based on ambient light</string>
+
+    <!-- Network settings -->
+    <string name="wifi">Wi-Fi</string>
+    <string name="wifi_enabled">Wi-Fi is on</string>
+    <string name="wifi_disabled">Wi-Fi is off</string>
+
+    <!-- Agent API messages -->
+    <string name="wifi_state_changed">Wi-Fi state changed</string>
+    <string name="bluetooth_state_changed">Bluetooth state changed</string>
+    <string name="brightness_changed">Brightness changed</string>
+</resources>
