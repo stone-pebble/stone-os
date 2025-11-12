@@ -1,450 +1,552 @@
-# CLAUDE.md
+# CLAUDE.md - Implementation Guide for Coding Agents
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Last Updated**: 2025-10-23
+**For**: OS Builder Agent, App Builder Agent, Emulator Agent
 
-## Project Overview
+---
 
-StoneOS is a minimalist, AI-augmented Android ROM that transforms Android into a choice-first experience where traditional apps and intelligent agents coexist seamlessly. It's built on Android 14 (AOSP) with custom SystemUI components, LiveKit-based AI agents, and Model Context Protocol (MCP) servers for third-party app integration.
+## How to Use This Guide
 
-**Target Device**: Google Pixel 8a (akita) with unlocked bootloader
+This guide is for AI coding agents executing implementation tickets for StoneOS.
 
-## Repository Architecture
+**Your workflow**:
+1. User assigns you a ticket from `/home/samuellarson/stone-os/tickets/`
+2. Read the ticket's SPECIFICATION section carefully
+3. Consult this CLAUDE.md for StoneOS-specific implementation patterns
+4. Execute the work using your available tools
+5. Fill in the ticket's IMPLEMENTATION REPORT section
+6. If blocked, fill in COMPLICATIONS & REVISIONS and stop
 
-This is a centralized development repository containing all StoneOS components:
+**Important**: Read `/home/samuellarson/stone-os/tickets/CLAUDE.md` for detailed ticket workflow instructions.
+
+---
+
+## What is StoneOS?
+
+StoneOS is a minimalist, AI-augmented Android ROM built on Android 14 (AOSP android-14.0.0_r61).
+
+**Core concept**: "Choice-First, Not Voice-First"
+- Users can interact via **touch** OR **conversational AI**
+- Traditional Android apps run normally (in grayscale)
+- AI agents can control apps through MCP servers
+- User chooses interaction method moment-by-moment
+
+**Target device**: Google Pixel 8a (akita) with unlocked bootloader
+**Build environment**: GCP n2-standard-32 instances
+**Testing environment**: Cuttlefish virtual device
+
+### Key Components
+
+1. **Stone SystemUI**: Custom Android system interface
+   - `StoneManager`: Lifecycle manager (CoreStartable)
+   - `StoneIcon`: Always-visible 🗿 icon at bottom of screen
+   - `StonePanel`: Sliding chat interface (1/3 of screen)
+
+2. **System Apps**: Minimalist replacements for AOSP defaults
+   - `StoneLauncher`: 3x4 grid home screen (replaces Launcher3)
+   - `StoneSettings`: Settings app with BroadcastReceiver API
+   - `StoneTime`: Alarms, timers, stopwatch
+
+3. **AI Infrastructure**:
+   - LiveKit agents for voice/text processing
+   - MCP servers for app control (Spotify, Maps, etc.)
+
+---
+
+## Repository Structure
 
 ```
-stone-os/
-├── vendor/stone/                   # Stone SystemUI Java components (source of truth)
-│   └── packages/SystemUI/src/com/android/systemui/stone/
-│       ├── StoneManager.java      # Central manager, implements CoreStartable
-│       ├── StonePanel.java        # Sliding 1/3 screen chat interface with WebView
-│       └── StoneIcon.java         # Always-visible Stone icon with gesture detection
-├── development/
-│   └── fork-workspace/
-│       └── stoneos-frameworks/    # GitHub fork of AOSP frameworks/base
-├── stone-agent/                   # TypeScript LiveKit agents
-├── mcp-servers/                   # Model Context Protocol servers
-│   ├── spotify-mcp/
-│   ├── maps-mcp/
-│   ├── telephony-mcp/
-│   ├── calendar-mcp/
-│   └── notion-mcp/
+/home/samuellarson/stone-os/          # THIS IS YOUR WORKING DIRECTORY
+├── vendor/stone/                      # Source of truth for Stone code
+│   ├── packages/SystemUI/src/com/android/systemui/stone/
+│   │   ├── StoneManager.java         # SystemUI lifecycle manager
+│   │   ├── StoneIcon.java           # Bottom icon with swipe detection
+│   │   └── StonePanel.java          # Sliding chat interface
+│   └── packages/apps/
+│       ├── StoneLauncher/           # Home screen app
+│       ├── StoneSettings/           # Settings app
+│       └── StoneTime/               # Time management app
+├── tickets/                          # Your work assignments
+│   ├── CLAUDE.md                    # Ticket workflow guide
+│   ├── [NNN-active-ticket.md]       # Active tickets
+│   └── archive/                     # Completed tickets
 ├── scripts/
-│   ├── build_stoneos.sh          # Main GCP build automation
-│   └── test_emulator.sh          # Local emulator testing
-└── builds/latest/                # Build outputs (SystemUI.apk)
+│   ├── sync_vendor.sh              # Sync vendor/stone → AOSP
+│   └── build_stoneos.sh            # GCP build automation
+└── docs/
+    └── STONEOS_SPECS.md            # Product specifications
+
+/home/samuellarson/aosp/              # AOSP source tree (150GB)
+├── frameworks/base/packages/SystemUI/  # Where SystemUI builds from
+├── vendor/stone/                       # Synced from stone-os/vendor/
+└── out/target/product/vsoc_x86_64/    # Build outputs
 ```
 
-## Development Philosophy
+---
 
-### Fork-Based AOSP Development
-StoneOS uses a **forked frameworks/base** approach rather than overlays or runtime patching:
-- Fork repository: https://github.com/stone-pebble/stoneos-frameworks
-- Branch: `android-14.0.0_r61` (Android 14 QPR2)
-- Stone components live in: `packages/SystemUI/src/com/android/systemui/stone/`
-- The fork is integrated via AOSP's `.repo/local_manifests/` mechanism
+## Development Workflows
 
-### Why This Approach Works
-- **Soong build system**: Android uses Soong (Android.bp), not Make
-- **Parse-time evaluation**: Glob patterns in Android.bp are evaluated before build starts
-- **Source tree requirement**: Custom SystemUI code must exist in the source tree before build begins
-- **No runtime patches**: Device overlays only work for resources, not Java/Kotlin code
+### Workflow 1: Working with Stone SystemUI Components
 
-## Key Architectural Components
+**Files**: `StoneManager.java`, `StoneIcon.java`, `StonePanel.java`
 
-### 1. Stone SystemUI Components
+**Source of truth**: `/home/samuellarson/stone-os/vendor/stone/packages/SystemUI/src/com/android/systemui/stone/`
 
-**StoneManager.java** (`stone/StoneManager.java`)
-- Central manager implementing `CoreStartable` interface for SystemUI lifecycle integration
-- Uses Dagger dependency injection (`@SysUISingleton`, `@Inject`)
-- Manages WindowManager lifecycle for StoneIcon and StonePanel
-- Registered in `SystemUICoreStartableModule.kt` via `@Binds @IntoMap @ClassKey`
-- Called by SystemUI on boot via `start()` method
+**Steps**:
 
-**StonePanel.java** (`vendor/stone/.../StonePanel.java`) ✓ **Implemented**
-- Extends FrameLayout with WebView chat interface
-- Loads `http://localhost:8080/chat` with JavaScript and DOM storage enabled
-- ValueAnimator-based slide animation (300ms duration)
-- Animates translationY from off-screen (panelHeight) to on-screen (0)
-- Methods: `show()`, `hide()`, `toggle()`, `isExpanded()`
-- Occupies 1/3 of screen height when visible
-- Initial state: hidden below screen
+1. **Edit** source files in `stone-os/vendor/stone/...`
 
-**StoneIcon.java** (`vendor/stone/.../StoneIcon.java`) ✓ **Implemented**
-- Extends View with custom onDraw rendering
-- Gray rounded rectangle with two white circular eyes (moai-inspired)
-- GestureDetector with SimpleOnGestureListener for swipe-up detection
-- Detects upward fling gestures (velocityY < -1000 px/s)
-- Visual feedback: LightingColorFilter darkens on press
-- 64dp × 64dp touch target (onMeasure)
-- OnSwipeUpListener callback interface
+2. **Sync to AOSP** frameworks/base:
+   ```bash
+   cd ~/stone-os
+   ./scripts/sync_vendor.sh
 
-### 2. Integration Flow
+   # Then manually copy to frameworks/base
+   cp ~/aosp/vendor/stone/packages/SystemUI/src/com/android/systemui/stone/*.java \
+      ~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+   ```
 
+3. **Build SystemUI**:
+   ```bash
+   cd ~/aosp
+   source build/envsetup.sh
+   lunch aosp_cf_x86_64_phone-ap2a-eng
+   m SystemUI
+   ```
+
+4. **Verify classes in APK**:
+   ```bash
+   cd /tmp
+   unzip -q ~/aosp/out/target/product/vsoc_x86_64/system_ext/priv-app/SystemUI/SystemUI.apk 'classes*.dex'
+   strings classes*.dex | grep -i "StoneManager\|StoneIcon\|StonePanel"
+   ```
+
+**Build output**: `~/aosp/out/target/product/vsoc_x86_64/system_ext/priv-app/SystemUI/SystemUI.apk` (~42MB)
+
+---
+
+### Workflow 2: Working with System Apps
+
+**Apps**: `StoneLauncher`, `StoneSettings`, `StoneTime`
+
+**Source of truth**: `/home/samuellarson/stone-os/vendor/stone/packages/apps/[AppName]/`
+
+**Steps**:
+
+1. **Edit** app files in `stone-os/vendor/stone/packages/apps/[AppName]/`
+
+2. **Sync to AOSP**:
+   ```bash
+   cd ~/stone-os
+   ./scripts/sync_vendor.sh
+   ```
+
+3. **Build single app** (fast, ~5-10 min):
+   ```bash
+   cd ~/aosp
+   source build/envsetup.sh
+   lunch aosp_cf_x86_64_phone-ap2a-eng
+   m [AppName]  # e.g., m StoneSettings
+   ```
+
+4. **Build full system** (slow, ~30-60 min):
+   ```bash
+   cd ~/aosp
+   source build/envsetup.sh
+   lunch aosp_cf_x86_64_phone-ap2a-eng
+   m  # Full build
+   ```
+
+**Build outputs**: `~/aosp/out/target/product/vsoc_x86_64/system_ext/priv-app/[AppName]/[AppName].apk`
+
+---
+
+### Workflow 3: Testing in Cuttlefish Emulator
+
+**Prerequisites**: Instance must have KVM enabled (n2-standard-32 machine type)
+
+**Steps**:
+
+1. **Ensure full system image is built**:
+   ```bash
+   ls ~/aosp/out/target/product/vsoc_x86_64/system.img  # Should exist (650MB+)
+   ls ~/aosp/out/host/linux-x86/bin/launch_cvd          # Should exist
+   ```
+
+2. **Launch Cuttlefish**:
+   ```bash
+   cd ~/aosp
+   source build/envsetup.sh
+   lunch aosp_cf_x86_64_phone-ap2a-eng
+   launch_cvd
+   ```
+
+3. **Access via web UI** (from within VNC session):
+   - Open browser in VNC
+   - Navigate to `https://0.0.0.0:8443`
+
+4. **Verify Stone components**:
+   - StoneLauncher should be the home screen (3x4 grid)
+   - StoneIcon should be visible at bottom
+   - Swipe up from StoneIcon should reveal StonePanel
+
+**Stopping Cuttlefish**:
+```bash
+stop_cvd
 ```
-User Input → StoneIcon (swipe up) → StonePanel (shows) → WebView Chat
-                                                         ↓
-                                                    LiveKit Agent
-                                                         ↓
-                                                    MCP Servers
-                                                         ↓
-                                                  Android APIs
+
+---
+
+## Core Architectural Patterns
+
+### Pattern 1: The "Head & Headless" Application Architecture
+
+**Principle**: Every StoneOS app must be controllable by both humans (GUI) and AI agents (API).
+
+**Implementation**:
+
+1. **The "Head" (GUI Layer)**: Standard Android Activity
+   - XML layouts, touch interactions
+   - Calls Android system services directly
+   - Example: `SettingsActivity.java` with SeekBar for brightness
+
+2. **The "Headless" (API Layer)**: BroadcastReceiver
+   - Listens for Intent actions
+   - Calls the SAME system services as GUI
+   - Example: `SettingsControlReceiver.java` receives `SET_BRIGHTNESS` intent
+
+**Code example**:
+
+```java
+// In AndroidManifest.xml
+<receiver
+    android:name=".SettingsControlReceiver"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="com.stoneos.settings.SET_BRIGHTNESS" />
+    </intent-filter>
+</receiver>
+
+// In SettingsControlReceiver.java
+public class SettingsControlReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if ("com.stoneos.settings.SET_BRIGHTNESS".equals(intent.getAction())) {
+            int level = intent.getIntExtra("level", 128);
+            Settings.System.putInt(context.getContentResolver(),
+                Settings.System.SCREEN_BRIGHTNESS, level);
+        }
+    }
+}
 ```
 
-### 3. Stone Agent Architecture (LiveKit)
+**Testing the API**:
+```bash
+adb shell am broadcast \
+  -a com.stoneos.settings.SET_BRIGHTNESS \
+  --ei level 200
+```
 
-The `stone-agent/` directory contains TypeScript agents using LiveKit:
-- **stone-livekit.js**: Main Stone assistant agent
-- **go.js**: Maps/navigation agent
-- **listen.js**: Spotify music control agent
-- **ask-livekit.js**: Perplexity knowledge agent
-- **think-livekit.js**: Notion note-taking agent
+**Documentation**: Each app with a Headless API must have a `TOOLS.md` file documenting all Intent actions.
 
-Each agent communicates with corresponding MCP servers to control Android functionality.
+---
 
-### 4. MCP (Model Context Protocol) Servers
+### Pattern 2: The Forked frameworks/base Approach
 
-MCP servers act as bridges between AI agents and third-party services:
-- **spotify-mcp**: Playback control, playlist management
-- **maps-mcp**: Navigation, location services
-- **telephony-mcp**: Phone calls, SMS/RCS
-- **calendar-mcp**: Event management
-- **notion-mcp**: Note creation and organization
+**Why**: Android's Soong build system evaluates source trees at parse-time. Device overlays only work for resources (XML), not Java/Kotlin code.
 
-## Build System
+**How it works**:
 
-### GCP-Based AOSP Builds
+1. We maintain a fork of AOSP's `frameworks/base` at: https://github.com/stone-pebble/stoneos-frameworks
+2. Fork contains our custom Stone components in the source tree
+3. AOSP build pulls from our fork via `.repo/local_manifests/stoneos.xml`
 
-StoneOS builds run on Google Cloud Platform for speed and resource optimization:
+**What this means for you**:
+- Stone Java files must exist in `frameworks/base/packages/SystemUI/src/com/android/systemui/stone/` BEFORE build starts
+- You cannot patch files at runtime
+- Always sync from `vendor/stone/` → `frameworks/base/` before building
 
-**Instance specifications:**
-- Machine type: `n2-standard-32` (32 vCPUs, 128GB RAM)
-- Pricing: SPOT instances (~$0.23/hour, 70% cheaper)
-- Build time: 25-35 minutes total
-  - AOSP sync: ~15 minutes (rate-limited to `-j4`)
-  - SystemUI build: ~10-15 minutes
+**Critical**: Do NOT create separate static libraries for Stone components. They need access to SystemUI framework classes (CoreStartable, etc.), which creates circular dependencies.
 
-**CRITICAL**: Must use `-j4` for `repo sync` to avoid HTTP 429 errors from Google's rate limiting.
+---
+
+### Pattern 3: Dagger Dependency Injection in SystemUI
+
+**Core concept**: SystemUI uses Dagger for dependency injection. Custom components must follow specific patterns.
+
+**Required pattern for Stone components**:
+
+```java
+import com.android.systemui.CoreStartable;
+import com.android.systemui.dagger.SysUISingleton;
+import javax.inject.Inject;
+
+@SysUISingleton
+public class StoneManager implements CoreStartable {  // IMPLEMENTS, not extends!
+
+    private final Context mContext;
+
+    @Inject  // Constructor injection
+    public StoneManager(Context context) {
+        mContext = context;  // Store context, no super() call
+        // ... initialization
+    }
+
+    @Override
+    public void start() {
+        // Called by SystemUI on boot
+    }
+
+    @Override
+    public void dump(PrintWriter pw, String[] args) {
+        // Required by Dumpable interface
+    }
+}
+```
+
+**Registration** (in `SystemUICoreStartableModule.kt`):
+
+```kotlin
+@Binds
+@IntoMap
+@ClassKey(StoneManager::class)
+abstract fun bindStoneManager(sysui: StoneManager): CoreStartable
+```
+
+**Common mistake**: Using `extends CoreStartable` instead of `implements CoreStartable`. CoreStartable is an **interface**, not a class.
+
+---
+
+## Build System Reference
+
+### Build Targets
+
+**For Cuttlefish (our standard)**:
+```bash
+lunch aosp_cf_x86_64_phone-ap2a-eng
+```
+
+**What this means**:
+- `aosp_cf_x86_64_phone`: Cuttlefish virtual device, x86_64 architecture
+- `ap2a`: Android 14 QPR2 release
+- `eng`: Engineering build (includes debug tools)
+
+**NEVER use**: `aosp_cf_x86_64_phone-eng` (missing release specifier) - this will fail
 
 ### Build Commands
 
-**Primary build workflow:**
+**Build everything**:
 ```bash
-# Full build cycle with testing
-./scripts/build_stoneos.sh
-
-# Build only, skip testing
-./scripts/build_stoneos.sh --quick
-
-# Test existing build in emulator
-./scripts/build_stoneos.sh --test
-
-# Deploy to connected device
-./scripts/build_stoneos.sh --deploy
-
-# Show cost estimates
-./scripts/build_stoneos.sh --cost
+m
 ```
 
-**Manual AOSP build process (on GCP or local):**
+**Build specific module**:
 ```bash
-# Initial AOSP download
-mkdir ~/aosp && cd ~/aosp
-repo init -u https://android.googlesource.com/platform/manifest \
-  -b android-14.0.0_r61 --depth=1
-
-# Configure local manifest to use forked frameworks/base
-mkdir -p .repo/local_manifests
-cat > .repo/local_manifests/stoneos.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<manifest>
-  <remove-project name="platform/frameworks/base" />
-  <project name="stone-pebble/stoneos-frameworks"
-           path="frameworks/base"
-           remote="github"
-           revision="android-14.0.0_r61" />
-  <remote name="github" fetch="https://github.com/" />
-</manifest>
-EOF
-
-# Sync AOSP (MUST use -j4, not higher)
-repo sync -c -j4 --no-tags --no-clone-bundle --current-branch
-
-# Build SystemUI
-source build/envsetup.sh
-lunch aosp_x86_64-ap2a-eng  # Android 14 - NOT trunk_staging!
-m SystemUI -j16  # Adjust -j based on CPU cores
-
-# Output location
-# out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk
+m SystemUI
+m StoneSettings
+m StoneLauncher
 ```
 
-**Important build configurations:**
-- **aosp_x86_64-ap2a-eng**: Android 14 QPR2 (works)
-- **trunk_staging**: Google internal only, NOT in public AOSP (doesn't work)
-
-### Syncing Stone Components to Fork
-
-When editing Stone components in `stone/`, sync them to the fork:
-
+**Clean build** (when Android.bp changes or files won't compile):
 ```bash
-# Copy changes to fork workspace
-cp stone/*.java development/fork-workspace/stoneos-frameworks/packages/SystemUI/src/com/android/systemui/stone/
-
-# Commit and push to fork
-cd development/fork-workspace/stoneos-frameworks
-git add -A
-git commit -m "Update Stone components"
-git push origin android-14.0.0_r61
-
-# Rebuild from main repo
-cd ~/stone-os
-./scripts/build_stoneos.sh
+m clean
+m SystemUI
 ```
 
-## Stone Agent Development
+**Incremental builds**: If only Java files changed, just run `m [module]` without clean.
 
-**Build and run agents:**
+### Critical Build Notes
+
+**repo sync MUST use -j4**:
 ```bash
-cd stone-agent
-
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Run individual agents
-npm run start:stone    # Main Stone agent
-npm run start:go       # Maps agent
-npm run start:listen   # Spotify agent
-npm run start:ask      # Knowledge agent
-npm run start:think    # Notes agent
-
-# Run all agents concurrently
-npm run start:all
-
-# Test locally
-npm test
+repo sync -c -j4  # NOT -j8 or higher!
 ```
+Why: Google's git servers rate-limit. Higher concurrency causes HTTP 429 errors.
 
-**Agent dependencies:**
-- `@livekit/agents`: Core LiveKit agent framework
-- `@livekit/rtc-node`: Real-time communication
-- LiveKit plugins: Deepgram (speech), OpenAI (LLM), Silero (VAD)
+**Glob patterns are evaluated at parse-time**:
+- `"src/**/*.java"` in Android.bp includes ALL .java files in src/ tree
+- Stone components are automatically included
+- No need to explicitly list `stone/*.java`
 
-## MCP Server Development
+---
 
-Each MCP server is a standalone Node.js service:
+## File Locations Reference
 
-```bash
-# Start individual servers
-cd mcp-servers/spotify-mcp && npm start
-cd mcp-servers/maps-mcp && npm start
-cd mcp-servers/telephony-mcp && npm start
-cd mcp-servers/calendar-mcp && npm start
-cd mcp-servers/notion-mcp && npm start
+### Source Files (Edit Here)
 
-# Test MCP endpoints
-curl -X POST http://localhost:3000/execute \
-  -H "Content-Type: application/json" \
-  -d '{"tool": "play_song", "params": {"query": "test"}}'
-```
+| Component | Source of Truth |
+|-----------|----------------|
+| StoneManager, StoneIcon, StonePanel | `/home/samuellarson/stone-os/vendor/stone/packages/SystemUI/src/com/android/systemui/stone/` |
+| StoneLauncher | `/home/samuellarson/stone-os/vendor/stone/packages/apps/StoneLauncher/` |
+| StoneSettings | `/home/samuellarson/stone-os/vendor/stone/packages/apps/StoneSettings/` |
+| StoneTime | `/home/samuellarson/stone-os/vendor/stone/packages/apps/StoneTime/` |
 
-## Application Architecture: The "Head & Headless" Pattern
+### Build Files (AOSP Tree)
 
-All StoneOS system applications (e.g., StoneLauncher, StoneSettings, StoneTime) follow a core architectural pattern known as "Head & Headless." This design ensures that every feature is accessible to both a human user via a graphical interface and an AI agent via a programmatic API, fulfilling our "Choice First" philosophy.
+| Component | Build Location |
+|-----------|---------------|
+| SystemUI source | `~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/` |
+| System apps source | `~/aosp/vendor/stone/packages/apps/[AppName]/` |
+| SystemUI Android.bp | `~/aosp/frameworks/base/packages/SystemUI/Android.bp` |
+| Dagger bindings | `~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/dagger/SystemUICoreStartableModule.kt` |
 
-- **The "Head" (GUI Layer):** This is the standard Android `Activity` that provides the visual user interface. It is built with native Android UI components (XML layouts) and is designed with a minimalist, black-and-white aesthetic. The user interacts with this layer directly.
+### Build Outputs
 
-- **The "Headless" Layer (API Layer):** This is a `BroadcastReceiver` implemented within the same application. It listens for a specific set of custom `Intent` actions. An AI agent can trigger functionality by sending a broadcast intent with the correct action and parameters. This layer is completely independent of the UI.
+| Component | Output Location |
+|-----------|----------------|
+| SystemUI.apk | `~/aosp/out/target/product/vsoc_x86_64/system_ext/priv-app/SystemUI/SystemUI.apk` |
+| App APKs | `~/aosp/out/target/product/vsoc_x86_64/system_ext/priv-app/[AppName]/[AppName].apk` |
+| system.img | `~/aosp/out/target/product/vsoc_x86_64/system.img` |
+| super.img | `~/aosp/out/target/product/vsoc_x86_64/super.img` |
+| Cuttlefish tools | `~/aosp/out/host/linux-x86/bin/launch_cvd` |
 
-Both the "Head" and the "Headless" layers call the same underlying Android system services (`WifiManager`, `AlarmManager`, etc.) to perform their actions. This ensures functional parity between the user and the agent.
-
-### API Documentation (`TOOLS.md`)
-
-Each application that follows this pattern must include a `TOOLS.md` file in its root directory. This file serves as the formal API documentation for the "Headless" layer, defining the `Intent` actions, required parameters (extras), and their data types, formatted for consumption by an LLM.
-
-## Standalone App Testing Workflow
-
-While the full StoneOS operating system requires a long build time, individual applications (`.apk` files) can be developed and tested much more rapidly. For quick UI iteration, we use a lightweight, standalone testing workflow.
-
-1.  **Environment:** A stock Android Virtual Device (AVD) is run inside our VNC-enabled GCP environment. This AVD runs a standard, pre-built Google system image, not our custom StoneOS build.
-2.  **Build the App:** The developer builds only the specific application they are working on (e.g., `m StoneSettings`). This produces a standalone `.apk` file in minutes.
-3.  **Install the App:** The developer uses `adb install` to side-load the newly compiled `.apk` onto the running stock AVD.
-4.  **Test the UI:** The developer can then launch the app from the stock app drawer to test its UI, layout, and basic functionality.
-
-**Limitations:** This workflow is for **UI and non-privileged logic testing only**. The app will not have its required system-level permissions on a stock OS, so any functionality that requires privileged access (like changing Wi-Fi state) will fail. Final, comprehensive testing must still be done on a full StoneOS build.
-
-## Device Setup (Pixel 8a)
-
-**Unlock bootloader (WIPES DEVICE):**
-```bash
-adb reboot bootloader
-fastboot flashing unlock
-```
-
-**Root with Magisk:**
-1. Install Magisk app on device
-2. Open Magisk → Install → Direct Install
-3. Reboot device
-4. Verify: `adb shell su -c 'whoami'` should output `root`
-
-**Deploy SystemUI to device:**
-```bash
-adb root && adb remount
-adb push builds/latest/SystemUI.apk /system/system_ext/priv-app/SystemUI/
-adb reboot
-```
-
-## Testing & Debugging
-
-**Monitor StoneOS logs:**
-```bash
-# StoneOS-specific logs
-adb logcat -s StoneOS:* Stone:* MCP:* LiveKit:*
-
-# SystemUI logs only
-adb logcat -s SystemUI:* | grep StoneOS
-
-# Window manager state
-adb shell dumpsys window
-
-# Graphics performance
-adb shell dumpsys gfxinfo com.android.systemui
-```
-
-**Testing workflow:**
-```bash
-# Clear app data
-adb shell pm clear com.stonelauncher
-
-# Restart app
-adb shell am start com.stonelauncher/.MainActivity
-
-# Take screenshot
-adb shell screencap -p /sdcard/screen.png
-adb pull /sdcard/screen.png
-
-# Check running services
-adb shell dumpsys activity services | grep -i stone
-```
-
-## Critical Technical Details
-
-### Soong Build System (Android.bp)
-- SystemUI uses **Soong** build system, not Make (Android.mk)
-- Glob patterns like `src/**/*.java` are evaluated at parse time
-- Custom Stone files must exist in source tree before build starts
-- Cannot patch Android.bp at runtime - must be in fork
-
-### Key File Locations
-- **Stone components**: `frameworks/base/packages/SystemUI/src/com/android/systemui/stone/`
-- **SystemUI Android.bp**: `frameworks/base/packages/SystemUI/Android.bp`
-- **Build output**: `out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk`
-- **Window manager**: `frameworks/base/services/core/java/com/android/server/policy/PhoneWindowManager.java`
-- **SurfaceFlinger**: `frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp`
-
-### Grayscale Implementation
-For system-wide grayscale in SurfaceFlinger (future implementation):
-```cpp
-// ITU-R BT.709 luminance coefficients
-float[] mat = {
-    0.2126f, 0.7152f, 0.0722f, 0, 0,  // Red
-    0.2126f, 0.7152f, 0.0722f, 0, 0,  // Green
-    0.2126f, 0.7152f, 0.0722f, 0, 0,  // Blue
-    0, 0, 0, 1, 0                      // Alpha
-}
-```
-Location: `frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp`
-
-## Performance Targets
-
-- **Voice response latency**: < 500ms
-- **Chat panel animation**: 300ms
-- **System grayscale overhead**: < 5%
-- **GCP build time**: 25-35 minutes
-- **SystemUI APK size**: ~40-50MB
+---
 
 ## Common Issues & Solutions
 
-### Build Issues
-- **HTTP 429 on repo sync**: Always use `-j4` (not `-j8` or higher)
-- **trunk_staging lunch target not found**: Use `aosp_x86_64-ap2a-eng` instead
-- **Stone classes not in APK**: Run `m clean` to clear build cache, then rebuild
-- **GCP instance timeout**: Startup script must touch `/tmp/ready` file
-- **Circular dependency with static libraries**: DON'T create separate `StoneUI-Lib` - use standard `"src/**/*.java"` glob pattern instead
+### Issue: "Invalid lunch combo" error
 
-### Verifying Stone Classes in APK
-After building, verify that Stone classes were compiled:
-
-```bash
-# Extract DEX files and search for Stone classes
-cd /tmp
-unzip -q ~/aosp/out/target/product/generic_x86_64/system/system_ext/priv-app/SystemUI/SystemUI.apk classes.dex classes2.dex classes3.dex
-strings classes*.dex | grep -E "StoneManager|StoneIcon|StonePanel"
+**Symptom**:
+```
+Invalid lunch combo: aosp_cf_x86_64_phone-eng
+Valid combos must be of the form <product>-<release>-<variant>
 ```
 
-Expected output should include:
-- `Lcom/android/systemui/stone/StoneManager;`
-- `Lcom/android/systemui/stone/StoneIcon;`
-- `Lcom/android/systemui/stone/StonePanel;`
-- Log strings like "StoneOS: Initializing StoneManager"
+**Solution**: Use the full format with release specifier:
+```bash
+lunch aosp_cf_x86_64_phone-ap2a-eng
+```
 
-### What Doesn't Work
-- **Device overlays for Java code**: Only work for resources (XML), not code
-- **Runtime Android.bp patching**: Too fragile, use fork instead
-- **Separate static libraries for Stone components**: Creates circular dependencies (Stone needs SystemUI-core classes, SystemUI-core would need Stone library)
-- **Android.mk for SystemUI**: SystemUI uses Soong (Android.bp)
-- **Building on macOS**: Use GCP Linux instance for full AOSP builds
+---
 
-## Development Workflow Summary
+### Issue: Stone classes not in SystemUI.apk
 
-1. **Edit Stone components** in `vendor/stone/packages/SystemUI/src/com/android/systemui/stone/`
-2. **Copy to AOSP** in `~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/`
-3. **Build SystemUI**: `cd ~/aosp && source build/envsetup.sh && lunch aosp_x86_64-ap2a-eng && m SystemUI -j16`
-4. **Verify build**: Check classes in APK with DEX inspection
-5. **Deploy to device**: `adb root && adb remount && adb push <apk> /system/system_ext/priv-app/SystemUI/ && adb reboot`
-6. **Test and iterate** based on logs: `adb logcat -s StoneOS:* SystemUI:*`
+**Symptom**: Build succeeds but DEX verification shows no Stone classes.
 
-## Current Implementation Status
+**Causes**:
+1. Files not in `frameworks/base` before build
+2. Build cache is stale
 
-### Phase 1: Core SystemUI ✓ (Complete)
-- ✓ StoneManager implementing CoreStartable interface
-- ✓ Dagger dependency injection registration
-- ✓ WindowManager integration for StoneIcon and StonePanel
-- ✓ Build system verification (glob pattern approach)
-- ✓ Stone classes successfully compiled into SystemUI.apk
+**Solution**:
+```bash
+# Verify files exist
+ls ~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
 
-### Phase 2: UI Components ✓ (Complete)
-- ✓ StoneIcon with GestureDetector for swipe-up detection
-- ✓ StoneIcon custom drawing (gray stone with eyes)
-- ✓ StonePanel with WebView loading http://localhost:8080/chat
-- ✓ Panel slide animation with ValueAnimator (300ms)
-- ✓ OnSwipeUpListener wired from StoneIcon to StonePanel.toggle()
-- ✓ 64dp touch target on StoneIcon
-- ✓ Visual press feedback with ColorFilter
-- ✓ Build verified: all classes present in SystemUI.apk
+# Clean and rebuild
+cd ~/aosp
+m clean
+m SystemUI
+```
 
-### Phase 3: Device Testing & System Integration (Next)
-- Deploy SystemUI.apk to device/emulator
-- Test swipe-up gesture triggers panel
-- Verify panel animation smoothness (300ms)
-- Test WebView chat interface connectivity
-- Add system-wide grayscale filter in SurfaceFlinger
-- Implement window manager modifications for 2/3 app view
-- Set up broadcast receiver for panel resize events
-- Test with real Android apps (Spotify, Maps, etc.)
+---
 
-### Phase 4: Agent & MCP Integration (Future)
-- Deploy LiveKit agents and connect to StonePanel
-- Set up MCP servers for Spotify, Maps, Telephony
-- Implement notification aggregation system
-- Build unlock screen with AI-generated summaries
+### Issue: CoreStartable compilation error
 
-## Important Documentation
+**Symptom**: `cannot find symbol: class CoreStartable` or `unexpected interface type`
 
-- **CLAUDE.md** (this file): Claude Code implementation guide
-- **GEMINI.md**: Technical guidance for the Architect Agent (Gemini) - AOSP build system specifics, SystemUI architecture
-- **README.md**: Repository overview and quick start
-- **Fork repository**: https://github.com/stone-pebble/stoneos-frameworks
+**Cause**: Using `extends CoreStartable` instead of `implements CoreStartable`
+
+**Solution**: CoreStartable is an interface. Always use `implements`:
+```java
+public class StoneManager implements CoreStartable {
+    private final Context mContext;
+
+    @Inject
+    public StoneManager(Context context) {
+        mContext = context;  // No super() call
+    }
+}
+```
+
+---
+
+### Issue: KVM not available for Cuttlefish
+
+**Symptom**: `launch_cvd` fails with KVM error
+
+**Cause**: GCP instance doesn't support nested virtualization
+
+**Solution**: Instance must be `n2-standard-32` machine type. See Ticket #26 for migration steps.
+
+---
+
+## Tool Integration
+
+### TOOLS.md Files
+
+Each app with a Headless API has a `TOOLS.md` file documenting all available Intent actions.
+
+**Example** (`StoneSettings/TOOLS.md`):
+
+```markdown
+## set_brightness
+
+Sets screen brightness level.
+
+**Intent Action**: `com.stoneos.settings.SET_BRIGHTNESS`
+
+**Parameters**:
+- `level` (int, required): Brightness level 0-255
+
+**Example**:
+```bash
+adb shell am broadcast -a com.stoneos.settings.SET_BRIGHTNESS --ei level 128
+```
+```
+
+**As a coding agent**: When implementing a Headless API, always create or update the corresponding `TOOLS.md` file.
+
+---
+
+## Important Reminders
+
+1. **Always sync from vendor/stone before building**
+   ```bash
+   cd ~/stone-os && ./scripts/sync_vendor.sh
+   ```
+
+2. **SystemUI requires copying to frameworks/base**
+   ```bash
+   cp ~/aosp/vendor/stone/packages/SystemUI/src/com/android/systemui/stone/*.java \
+      ~/aosp/frameworks/base/packages/SystemUI/src/com/android/systemui/stone/
+   ```
+
+3. **Verify DEX contents after build**
+   ```bash
+   cd /tmp
+   unzip -q [path-to-apk] 'classes*.dex'
+   strings classes*.dex | grep -i "Stone"
+   ```
+
+4. **Use correct lunch target**
+   ```bash
+   lunch aosp_cf_x86_64_phone-ap2a-eng  # Note the -ap2a-
+   ```
+
+5. **Fill in ticket reports completely**
+   - Include command outputs
+   - Show verification results
+   - List build artifact locations and sizes
+
+---
+
+## Getting Help
+
+**If you're blocked**:
+1. Fill in the COMPLICATIONS & REVISIONS section of your ticket
+2. Include full error messages and logs
+3. STOP and report to user
+4. Architect will research and revise the ticket
+
+**If the specification is unclear**:
+- Ask the user for clarification BEFORE starting work
+- Don't guess or improvise
+
+**If you need architectural context**:
+- Consult GEMINI.md (but don't use it for implementation details)
+- GEMINI.md explains WHY we do things a certain way
+- CLAUDE.md (this file) explains HOW to do them
+
+---
+
+**Remember**: You are an implementation specialist. Your job is to execute ticket specifications precisely, document your work clearly, and report complications honestly. The Architect handles strategy and research.

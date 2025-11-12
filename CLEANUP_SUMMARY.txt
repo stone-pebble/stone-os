@@ -1,0 +1,176 @@
+================================================================================
+CUTTLEFISH CLEANUP - QUICK REFERENCE
+================================================================================
+
+AUDIT DATE: 2025-10-31
+SYSTEM: Ubuntu 24.04, /home/samuellarson/stone-os
+
+--------------------------------------------------------------------------------
+EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+
+Total Cuttlefish artifacts found: 100+ files/directories
+Estimated space to reclaim: ~3GB (primarily Bazel cache)
+Failed attempts identified: 5+ over 8 days (Oct 23 - Oct 31)
+
+--------------------------------------------------------------------------------
+KEY LOCATIONS
+--------------------------------------------------------------------------------
+
+1. HOME DIRECTORY (~3.15GB)
+   • cvd-host_package.tar.gz* (4 files, 20K) - corrupted downloads
+   • .cuttlefish/ (4K) - empty config dir
+   • stoneos_cf/ (124K) - test build dir
+   • cuttlefish_* symlinks (3) - broken links
+   • .cache/bazel/.../cuttlefish/ (3GB) ← LARGEST CLEANUP
+
+2. TEMP FILES (136K)
+   • /tmp/cf_avd_1001/, /tmp/cvd/ - runtime dirs
+   • /tmp/*cvd*.log - 8 log files
+
+3. SYSTEM CONFIG (40K)
+   • /etc/cuttlefish-common/ - certs and config
+   • /etc/cuttlefish-orchestration/ - orchestration config
+   • /etc/apt/trusted.gpg.d/cuttlefish.gpg - APT key
+
+4. SYSTEM DATA (256K)
+   • /var/lib/cuttlefish-common/ - user artifacts
+   • /var/crash/*cuttlefish*.crash (2 files, 248K) - crash dumps
+   • /var/lib/apt/lists/*cuttlefish* - APT cache
+
+5. RUNTIME (minimal)
+   • /run/cuttlefish/ - operator socket
+   • /run/cuttlefish-dnsmasq-*.pid - PID files
+
+6. PACKAGES
+   • cuttlefish-frontend-build-deps (v1.24.0)
+
+7. KEPT INTENTIONALLY
+   • System users: httpcvd, _cutf-operator
+   • System group: cvdnetwork
+   • Group membership: samuellarson in cvdnetwork
+
+--------------------------------------------------------------------------------
+CLEANUP METHODS
+--------------------------------------------------------------------------------
+
+METHOD 1: AUTOMATED (RECOMMENDED)
+---------------------------------
+Run the cleanup script:
+
+    cd /home/samuellarson/stone-os
+    bash cleanup_cuttlefish.sh
+
+The script will:
+  ✓ Ask for confirmation
+  ✓ Remove all files/directories listed above
+  ✓ Purge Debian packages
+  ✓ Preserve system users/groups
+  ✓ Show progress and summary
+
+METHOD 2: MANUAL
+---------------------------------
+If you prefer to review each step:
+
+1. Read the detailed audit:
+   less /home/samuellarson/stone-os/CUTTLEFISH_CLEANUP_AUDIT.md
+
+2. Execute cleanup script sections individually
+   (see script contents for specific commands)
+
+--------------------------------------------------------------------------------
+POST-CLEANUP VERIFICATION
+--------------------------------------------------------------------------------
+
+Run these commands to verify clean system:
+
+    # Check home directory
+    find /home/samuellarson -name "*cuttlefish*" -o -name "*cvd*" 2>/dev/null
+
+    # Check temp
+    find /tmp -name "*cuttlefish*" -o -name "*cvd*" 2>/dev/null
+
+    # Check system
+    find /etc /var -name "*cuttlefish*" -o -name "*cvd*" 2>/dev/null
+
+    # Check packages
+    dpkg -l | grep -i cuttlefish
+
+    # Check processes
+    ps aux | grep -E "cuttlefish|cvd" | grep -v grep
+
+Expected: No output (clean system)
+
+--------------------------------------------------------------------------------
+SPACE RECLAMATION BREAKDOWN
+--------------------------------------------------------------------------------
+
+Bazel cache:       3.0 GB  ← 99.9% of total
+Home directories:  128 KB
+Temp files:        136 KB
+System config:      40 KB
+System data:       256 KB
+Packages:          100 KB
+                   -------
+TOTAL:            ~3.0 GB
+
+--------------------------------------------------------------------------------
+TIMELINE OF FAILED ATTEMPTS
+--------------------------------------------------------------------------------
+
+Oct 23 23:08  First download attempt (corrupted)
+Oct 24 00:27  Orchestration setup, crash
+Oct 30 18:43  Second attempt
+Oct 30 19:35  Launch failure
+Oct 30 20:21  Debug attempt (strace)
+Oct 30 21:45  Third download attempt
+Oct 30 23:43  Verbose launch attempt
+Oct 31 00:24  Fourth download attempt
+Oct 31 00:35  fetch_cvd attempts
+Oct 31 00:55  Bazel source build (created 3GB)
+Oct 31 01:09  Fifth download attempt
+
+Conclusion: 5+ downloads, 2+ crashes, 1 source build, multiple failures
+
+--------------------------------------------------------------------------------
+FILES CREATED BY THIS AUDIT
+--------------------------------------------------------------------------------
+
+1. /home/samuellarson/stone-os/cleanup_cuttlefish.sh
+   → Executable bash script for automated cleanup
+   → Safe, asks for confirmation
+   → Shows progress and summary
+
+2. /home/samuellarson/stone-os/CUTTLEFISH_CLEANUP_AUDIT.md
+   → Detailed markdown report with full inventory
+   → 500+ lines with timestamps, sizes, and analysis
+   → Reference for understanding what was found
+
+3. /home/samuellarson/stone-os/CLEANUP_SUMMARY.txt
+   → This file - quick reference guide
+   → Commands and key findings only
+
+--------------------------------------------------------------------------------
+READY FOR CLEAN BUILD
+--------------------------------------------------------------------------------
+
+After cleanup, the system will be ready for:
+  ✓ AOSP-based Cuttlefish build from source
+  ✓ No package conflicts
+  ✓ No leftover binaries
+  ✓ Clean slate with preserved system accounts
+
+AOSP source tree status: ALREADY CLEAN
+  → /home/samuellarson/aosp/ contains no Cuttlefish artifacts
+  → Ready to build when cleanup is complete
+
+--------------------------------------------------------------------------------
+NEXT STEPS
+--------------------------------------------------------------------------------
+
+1. Review this summary and the detailed audit report
+2. Run: bash /home/samuellarson/stone-os/cleanup_cuttlefish.sh
+3. Verify with the verification commands above
+4. Proceed with AOSP build (m command in aosp/ directory)
+
+================================================================================

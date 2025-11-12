@@ -1,65 +1,117 @@
 # StoneOS Ticket Log
 
-This document serves as a high-level changelog for the StoneOS project, tracking completed tickets, their outcomes, and key architectural learnings.
+**Status**: ⚠️ **DEPRECATED** - This file is no longer actively maintained.
+
+**Migrated to**: New ticket-based workflow in `/home/samuellarson/stone-os/tickets/`
 
 ---
 
-### **Ticket #12: Establish Secure, Interactive Emulator Environment on GCP**
-- **Agent:** Emulator Agent
-- **Objective:** Configure the GCP build server to allow secure, interactive testing of the AOSP emulator via a remote graphical desktop session.
-- **Key Deliverables:**
-  - `scripts/setup_vnc_server.sh`: Automated installation of XFCE desktop and TightVNC server on the GCP instance.
-  - `scripts/connect_vnc.sh`: Helper script for local machines to create a secure SSH tunnel to the VNC port.
-  - `scripts/launch_emulator.sh`: Script to launch the AOSP emulator within the VNC session with VNC-compatible settings.
-- **Outcome:** Successfully created a secure and functional remote desktop environment, enabling graphical testing of our builds. This became the foundation for our Cuttlefish testing environment.
+## New Workflow (As of 2025-10-23)
+
+All project work is now managed through structured tickets:
+
+- **Active tickets**: `/home/samuellarson/stone-os/tickets/`
+- **Completed tickets**: `/home/samuellarson/stone-os/tickets/archive/`
+- **Research tickets**: `/home/samuellarson/stone-os/tickets/research/`
+
+Each ticket has three sections:
+1. **SPECIFICATION** (written by architect)
+2. **IMPLEMENTATION REPORT** (written by coding agent)
+3. **COMPLICATIONS & REVISIONS** (if agent gets blocked)
+
+See `tickets/CLAUDE.md` for workflow details.
 
 ---
 
-### **Ticket #15: Build the StoneOS Minimalist Launcher**
-- **Agent:** App Building Agent
-- **Objective:** Create a simple, minimalist launcher application to serve as the primary home screen for StoneOS.
-- **Key Deliverables:**
-  - `vendor/stone/packages/apps/StoneLauncher/`: Source code for the new launcher.
-  - `vendor/stone/packages/apps/StoneLauncher/README.md`: Detailed implementation report.
-  - `stoneos_x86_64.mk`: AOSP product makefile created to integrate the launcher as a privileged system app and replace the default `Launcher3`.
-- **Key Learnings:** Established the standard workflow for creating and integrating a custom system application into the AOSP build.
+## Historical Record (Pre-Ticket System)
+
+The following tickets were completed before the structured ticket system was implemented. They are documented here for historical reference and have been incorporated into the project documentation.
+
+### Ticket #12: Establish Secure, Interactive Emulator Environment on GCP
+- **Agent**: Emulator Agent
+- **Status**: ✅ Completed
+- **Deliverables**:
+  - `scripts/setup_vnc_server.sh`
+  - `scripts/connect_vnc.sh`
+  - `scripts/launch_emulator.sh`
+- **Outcome**: Created VNC-based testing environment on GCP
+- **Referenced in**: README.md (Project Status section)
 
 ---
 
-### **Ticket #16: Build the StoneOS Settings Application (V1)**
-- **Agent:** App Building Agent
-- **Objective:** Create a functional Settings application with a minimalist UI and an agent-controllable API.
-- **Key Deliverables:**
-  - `vendor/stone/packages/apps/StoneSettings/`: Source code for the new Settings app.
-  - `vendor/stone/packages/apps/StoneSettings/README.md`: Detailed implementation report.
-  - `vendor/stone/packages/apps/StoneSettings/TOOLS.md`: API documentation for agent tool calls.
-- **Key Learnings:** Established the core "Head & Headless" architectural pattern for StoneOS apps, where functionality is accessible to both a graphical UI (the "Head") and a programmatic API via `BroadcastReceiver` (the "Headless" layer).
+### Ticket #15: Build the StoneOS Minimalist Launcher
+- **Agent**: App Building Agent
+- **Status**: ✅ Completed
+- **Deliverables**:
+  - `vendor/stone/packages/apps/StoneLauncher/`
+  - StoneLauncher 3x4 grid home screen
+- **Key Learning**: Standard workflow for custom system app integration
+- **Referenced in**: README.md, vendor/stone/packages/apps/StoneLauncher/README.md
 
 ---
 
-### **Ticket #20: Build the StoneOS Time Management App ("StoneTime")**
-- **Agent:** App Building Agent
-- **Objective:** Create a minimalist application for managing alarms, timers, and a stopwatch, following the "Head & Headless" architecture.
-- **Key Deliverables:**
-  - `vendor/stone/packages/apps/StoneTime/`: Source code for the new Time app.
-  - `vendor/stone/packages/apps/StoneTime/TOOLS.md`: API documentation for agent tool calls.
-- **Outcome:** Further solidified the "Head & Headless" pattern and expanded the suite of core StoneOS system applications.
+### Ticket #16: Build the StoneOS Settings Application (V1)
+- **Agent**: App Building Agent
+- **Status**: ✅ Completed
+- **Deliverables**:
+  - `vendor/stone/packages/apps/StoneSettings/`
+  - Settings app with GUI and BroadcastReceiver API
+  - `TOOLS.md` API documentation
+- **Key Learning**: Established "Head & Headless" architectural pattern
+- **Referenced in**: GEMINI.md (ADR-003), vendor/stone/packages/apps/StoneSettings/README.md
 
 ---
 
-### **Ticket #21: Implement Core Logic for System-Wide Grayscale Filter**
-- **Agent:** OS Builder Agent
-- **Objective:** Modify Android's core graphics compositor, `SurfaceFlinger`, to apply a system-wide grayscale effect.
-- **Key Deliverables:**
-  - Modified `~/aosp/frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp` to include logic for a grayscale color matrix transformation.
-- **Key Learnings:** Successfully identified and implemented a modification to a core C++ component of the Android framework. Established the use of `persist.sys.*` properties as a clean mechanism for toggling low-level OS features.
+### Ticket #20: Build the StoneOS Time Management App ("StoneTime")
+- **Agent**: App Building Agent
+- **Status**: ✅ Completed
+- **Deliverables**:
+  - `vendor/stone/packages/apps/StoneTime/`
+  - Alarms, timers, stopwatch with dual interface
+  - `TOOLS.md` API documentation
+- **Key Learning**: Further validation of "Head & Headless" pattern
+- **Referenced in**: README.md
 
 ---
 
-### **Ticket #22: Rebuild StoneOS with Cuttlefish Target**
-- **Agent:** Emulator Agent
-- **Objective:** Perform a full rebuild of the StoneOS system using the correct Cuttlefish-enabled lunch target (`aosp_cf_x86_64_phone-eng`).
-- **Key Deliverables:**
-  - A complete, successful AOSP build.
-  - A bootable `system.img` and all necessary Cuttlefish host tools located in `~/aosp/out/target/product/vsoc_x86_64/`.
-- **Key Learnings:** Identified and corrected a critical build configuration issue. Confirmed that `aosp_cf_x86_64_phone-eng` is the required target for building a Cuttlefish-compatible OS image, a crucial piece of knowledge for all future OS builds.
+### Ticket #21: Implement Core Logic for System-Wide Grayscale Filter
+- **Agent**: OS Builder Agent
+- **Status**: ✅ Completed (implementation in code)
+- **Deliverables**:
+  - Modified `SurfaceFlinger.cpp` for grayscale color matrix
+- **Key Learning**: Successful C++ framework modification, `persist.sys.*` property mechanism
+- **Referenced in**: GEMINI.md (Research Findings)
+- **Note**: Not yet tested in running system
+
+---
+
+### Ticket #22: Rebuild StoneOS with Cuttlefish Target
+- **Agent**: Emulator Agent
+- **Status**: ✅ Completed (build successful, boot pending)
+- **Deliverables**:
+  - Full AOSP build with Cuttlefish target
+  - `system.img` and Cuttlefish host tools
+- **Key Learning**: Correct lunch target format: `aosp_cf_x86_64_phone-ap2a-eng`
+- **Referenced in**: GEMINI.md (Finding #3), CLAUDE.md (Build Targets)
+
+---
+
+## Current Active Tickets (New System)
+
+See `/home/samuellarson/stone-os/tickets/` for current work:
+
+- **Ticket #23**: Fix StoneManager and rebuild SystemUI
+- **Ticket #24**: Documentation reorganization
+- **Ticket #25**: Research standalone app testing (Gemini)
+- **Ticket #26**: Migrate GCP instance, launch Cuttlefish
+
+---
+
+## For More Information
+
+- **Project overview**: `README.md`
+- **Implementation guide**: `CLAUDE.md` (for coding agents)
+- **Architecture guide**: `GEMINI.md` (for architect/research)
+- **Ticket workflow**: `tickets/CLAUDE.md`
+
+**This file will remain for historical reference but is no longer updated.**

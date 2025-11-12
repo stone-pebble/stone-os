@@ -16,15 +16,16 @@ import javax.inject.Inject;
  * for StoneOS's custom UI within SystemUI.
  */
 @SysUISingleton
-public class StoneManager extends CoreStartable {
+public class StoneManager implements CoreStartable {
 
+    private final Context mContext;
     private final WindowManager mWindowManager;
     private StoneIcon mStoneIcon;
     private StonePanel mStonePanel;
 
     @Inject
     public StoneManager(Context context) {
-        super(context);
+        mContext = context;
         mWindowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
     }
 

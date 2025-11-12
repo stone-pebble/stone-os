@@ -1,0 +1,178 @@
+================================================================================
+CUTTLEFISH ARTIFACTS - VISUAL DIRECTORY MAP
+================================================================================
+
+This map shows EVERY Cuttlefish-related file and directory on the system.
+Items marked with [X] will be removed by the cleanup script.
+
+Total: ~3GB across 10+ locations
+
+================================================================================
+
+/home/samuellarson/
+├── [X] cvd-host_package.tar.gz           (8K)   - Corrupted download #1
+├── [X] cvd-host_package.tar.gz.1         (4K)   - Corrupted download #2
+├── [X] cvd-host_package.tar.gz.2         (4K)   - Corrupted download #3
+├── [X] cvd-host_package.tar.gz.3         (4K)   - Corrupted download #4
+├── [X] cuttlefish_assembly@              (0)    - Broken symlink
+├── [X] cuttlefish_runtime@               (0)    - Broken symlink
+├── [X] cuttlefish_runtime.1@             (0)    - Broken symlink
+├── [X] .cuttlefish/                      (4K)   - Empty config dir
+├── [X] stoneos_cf/                       (124K)
+│   └── etc/
+│       └── cvd_config/
+│           └── cvd_config_phone.json
+└── [X] .cache/bazel/.../bin/cuttlefish/  (3GB) ← LARGEST!
+    ├── package/cuttlefish-common/
+    │   ├── bin/
+    │   │   ├── cvd
+    │   │   ├── cvd_internal_start
+    │   │   ├── cvd_internal_stop
+    │   │   ├── cvd_internal_status
+    │   │   ├── cvd_internal_env
+    │   │   ├── cvd_internal_display
+    │   │   ├── cvd_internal_host_bugreport
+    │   │   ├── run_cvd
+    │   │   ├── assemble_cvd
+    │   │   ├── restart_cvd
+    │   │   ├── powerbtn_cvd
+    │   │   ├── powerwash_cvd
+    │   │   ├── record_cvd
+    │   │   ├── snapshot_util_cvd
+    │   │   ├── cvdalloc
+    │   │   ├── cvd_send_sms
+    │   │   ├── cvd_update_location
+    │   │   └── [20+ more binaries and support files]
+    │   └── etc/
+    │       └── cvd_custom_action_config
+    ├── host/libs/config/_objs/cuttlefish_config/
+    ├── host/libs/command_util/_objs/run_cvd_proto/
+    ├── host/libs/wayland/_objs/cuttlefish_wayland_server/
+    ├── host/frontend/webrtc/_objs/
+    ├── host/commands/snapshot_util_cvd/
+    └── [9+ build object directories]
+
+/tmp/
+├── [X] cf_avd_1001/                      (16K)
+│   └── cvd-1/
+├── [X] cvd/                              (48K)
+│   └── 1001/1761852357345463/home/
+│       └── .cuttlefish_config.json
+├── [X] launch_cvd.log                    (59 bytes)
+├── [X] launch_cvd_verbose.log            (976 bytes)
+├── [X] launch_cvd_help.txt               (0 bytes)
+├── [X] assemble_cvd_strace.log           (53K)
+├── [X] fetch_cvd.log                     (4.1K)
+├── [X] fetch_cvd_attempt.log             (4.1K)
+├── [X] fetch_cvd_final.log               (641 bytes)
+└── [X] fetch_cvd_ticket47.log            (48 bytes)
+
+/etc/
+├── [X] cuttlefish-common/                (20K)
+│   └── operator/
+│       └── cert/
+│           ├── cert.pem                  (1.7K, owner: _cutf-operator)
+│           └── key.pem                   (3.2K, owner: _cutf-operator)
+├── [X] cuttlefish-orchestration/         (20K)
+│   └── ssl/
+│       └── cert/
+│           ├── cert.pem                  (1.7K, owner: root)
+│           └── key.pem                   (3.2K, owner: root)
+├── apt/
+│   └── trusted.gpg.d/
+│       └── [X] cuttlefish.gpg
+└── nginx/sites-enabled/
+    └── [X] cuttlefish-orchestration.conf@ (broken symlink)
+
+/var/
+├── lib/
+│   ├── [X] cuttlefish-common/            (8K)
+│   │   └── userartifacts/                (empty, owner: httpcvd)
+│   ├── apt/lists/
+│   │   ├── [X] us-apt.pkg.dev_...android-cuttlefish_..._Packages
+│   │   └── [X] us-apt.pkg.dev_...android-cuttlefish_InRelease
+│   └── dpkg/info/
+│       ├── [X] cuttlefish-frontend-build-deps.list
+│       └── [X] cuttlefish-frontend-build-deps.md5sums
+└── crash/
+    ├── [X] _usr_lib_cuttlefish-common_bin_assemble_cvd.1001.crash      (124K)
+    └── [X] _usr_lib_cuttlefish-common_bin_cvd_internal_start.1001.crash (124K)
+
+/run/                                     (ephemeral, recreated on reboot)
+├── [X] cuttlefish/
+│   └── operator_control                  (socket)
+├── [X] cuttlefish-dnsmasq-cvd-wbr.pid
+├── [X] cuttlefish-dnsmasq-cvd-wbr.leases
+├── [X] cuttlefish-dnsmasq-cvd-ebr.pid
+└── [X] cuttlefish-dnsmasq-cvd-ebr.leases
+
+/usr/share/doc/
+└── [X] cuttlefish-frontend-build-deps/
+    ├── README.Debian
+    ├── changelog.gz
+    └── copyright
+
+/home/samuellarson/aosp/
+└── (CLEAN - No Cuttlefish artifacts found)
+
+================================================================================
+SYSTEM ACCOUNTS (PRESERVED)
+================================================================================
+
+Users (left intact):
+  • httpcvd (UID: 116, GID: 124)        - HTTP CVD service user
+  • _cutf-operator (UID: 121, GID: 1004) - Cuttlefish operator user
+
+Groups (left intact):
+  • cvdnetwork (GID: 1004)              - Members: samuellarson, httpcvd
+
+Rationale: These consume <1KB and are harmless. Removal could cause issues.
+
+================================================================================
+PACKAGES TO PURGE
+================================================================================
+
+[X] cuttlefish-frontend-build-deps (v1.24.0)
+    - Meta-package for build dependencies
+    - Contains only documentation
+    - No actual binaries or libraries
+
+================================================================================
+CLEANUP EXECUTION
+================================================================================
+
+To remove all items marked with [X]:
+
+    bash /home/samuellarson/stone-os/cleanup_cuttlefish.sh
+
+This will reclaim approximately 3GB of disk space.
+
+================================================================================
+KEY OBSERVATIONS
+================================================================================
+
+1. LARGEST CLEANUP TARGET
+   → Bazel cache: 3GB (99.9% of total)
+   → Location: ~/.cache/bazel/.../cuttlefish/
+   → From source build attempt on Oct 31 00:55
+
+2. MULTIPLE FAILED DOWNLOADS
+   → 4 corrupted cvd-host_package.tar.gz files
+   → Each only 4-8KB (should be ~700MB)
+   → All failed to extract properly
+
+3. CRASH EVIDENCE
+   → 2 crash dumps in /var/crash/
+   → assemble_cvd and cvd_internal_start both crashed
+   → From Oct 24 and Oct 30 attempts
+
+4. BROKEN INFRASTRUCTURE
+   → 3 broken symlinks in home directory
+   → Target /home/samuellarson/cuttlefish/ doesn't exist
+   → nginx config symlink broken
+
+5. AOSP SOURCE TREE IS CLEAN
+   → /home/samuellarson/aosp/ has NO Cuttlefish artifacts
+   → Ready for fresh AOSP-based build after cleanup
+
+================================================================================

@@ -12,7 +12,36 @@ StoneOS is a minimalist, AI-augmented Android experience that seamlessly integra
 - AI assistant available but not intrusive
 - User chooses interaction method moment-by-moment
 
+---
+
+## Architectural Decisions & Current Status
+**NOTE:** This section documents the foundational technical decisions that have been made based on extensive testing and research. It serves as a guide to the current, validated development path.
+
+### AOSP & Environment
+*   **AOSP Base:** `android-14.0.0_r61`
+*   **Build Environment:**
+    *   **Host Server:** Google Cloud Platform (GCP) `n-standard-32` VM.
+    *   **Host OS:** Ubuntu 24.04 LTS.
+    *   **Analysis:** The modern host OS has been a source of toolchain incompatibility with the older AOSP branch, particularly for virtualization tools.
+*   **Target Hardware:** Google Pixel 8a (codename: "akita").
+*   **Target Architecture:** `ARM64`.
+
+### Deployment Strategy: Physical Device Flashing
+*   **Conclusion:** Virtualization is **not a viable test environment** for this project's specific configuration (AOSP version + Host OS).
+*   **Analysis Summary:**
+    *   **Standard Android Emulator:** Failed due to lack of KVM (hardware acceleration) support on the GCP VM, making it too slow to boot.
+    *   **Cuttlefish Emulator:** Failed due to a fundamental incompatibility between the Android 14-era `crosvm` (the virtual machine monitor) and the modern Ubuntu 24.04 host kernel. This was proven by testing both AOSP-built tools and official Google pre-built binaries, both of which crashed with the same low-level error (`failed to create a PCI root hub`). All testing and verification must be performed on physical hardware.
+
+### Build & Deployment Procedure (Validated)
+*   **Build Command:** `m` followed by `m dist`.
+    *   **Analysis:** The `m dist` command is a required post-build step. It packages all dynamic partitions (`system`, `vendor`, `product`, etc.) into a single, flashable `super.img`. Failure to generate this image was the root cause of a previous flashing failure.
+*   **Flashing Command:** `fastboot flash super super.img`.
+    *   **Analysis:** Flashing the `super.img` is the only supported method for updating dynamic partitions on the target hardware. Attempting to flash `system.img` individually from the bootloader will fail.
+
+---
+
 ## User Interface Architecture
+**Status:** Implemented
 
 ### Layout Structure
 ```
@@ -65,6 +94,7 @@ Chat Active (after swipe up):
 ## App Specifications
 
 ### 1. LISTEN - Music Control
+**Status:** Planned
 **Third-Party App**: Spotify (Android app from Play Store)
 **Display**: Grayscale Spotify app in top 2/3
 **Why Not Web**: Need actual app for audio streaming services quality
@@ -76,6 +106,7 @@ Chat Active (after swipe up):
 **Open Question**: Authentication method for Spotify app integration?
 
 ### 2. GO - Navigation
+**Status:** Planned
 **Implementation**: Google Maps API (not third-party app)
 **Display**: Custom-built map interface using Google Maps JavaScript API streaming
 **Agent Integration**: Custom MCP for map manipulation
@@ -86,6 +117,7 @@ Chat Active (after swipe up):
 - Agent can manipulate map elements directly
 
 ### 3. ASK - Knowledge & Limited Browsing
+**Status:** Planned
 **Third-Party App**: Perplexity (Android app)
 **Display**: Grayscale Perplexity app with images remaining in color
 **Browsing Philosophy**: 
@@ -99,6 +131,7 @@ Chat Active (after swipe up):
 - Temporary browser viewer for linked content only
 
 ### 4. TASK - MCP Discovery & Permitted Apps
+**Status:** Planned
 
 #### MCP Discovery Section
 **Purpose**: StoneOS version of app store for agent capabilities
@@ -123,6 +156,7 @@ Chat Active (after swipe up):
 - Future: Approval/curation process (not needed now)
 
 ### 5. SET - System Settings & Identity
+**Status:** Implemented (StoneSettings app); Agent integration is Planned
 
 #### Settings Control
 **Purpose**: Phone settings control
@@ -142,6 +176,7 @@ Chat Active (after swipe up):
 - 2FA apps remain accessible even in minimalist interface
 
 ### 6. TICK - Time Management
+**Status:** Implemented (StoneTime app); Agent integration is Planned
 **Purpose**: Clock, timer, stopwatch, alarms
 **Display**: Custom time interface (already built in UI)
 **Agent Integration**: MCP for time manipulation
@@ -152,6 +187,7 @@ Chat Active (after swipe up):
 - "What time is it in Tokyo?"
 
 ### 7. LOOK - Digital Library
+**Status:** Planned (Stretch Goal)
 **Purpose**: Public domain book reader
 **Content Source**: Project Gutenberg database
 **Implementation**: AI agent crawls Project Gutenberg, builds searchable database
@@ -164,6 +200,7 @@ Chat Active (after swipe up):
 **Note**: Stretch goal but highly desired feature
 
 ### 8. PLAN - Calendar
+**Status:** Planned
 **Third-Party App**: Google Calendar (initially)
 **Future Options**: Notion, Outlook, others
 **Display**: Grayscale Google Calendar app
@@ -175,6 +212,7 @@ Chat Active (after swipe up):
 - Schedule meetings
 
 ### 9. THINK - Notes
+**Status:** Planned
 **Third-Party App**: Notion
 **Display**: Grayscale Notion app
 **Agent Integration**: Notion MCP (will continue to evolve)
@@ -185,6 +223,7 @@ Chat Active (after swipe up):
 - Agent can make notes based on conversations
 
 ### 10. CONNECT - Unified Communications Hub
+**Status:** Planned
 **Purpose**: All communications in one interface
 **Complexity**: Most challenging app to implement
 
@@ -215,6 +254,7 @@ Chat Active (after swipe up):
 - Future: Pure MCP integration without apps
 
 ### 11. FUND - Payments & Banking
+**Status:** Planned
 **Primary Function**: Android native Wallet/Payments
 **Display**: Grayscale Android Wallet
 **AI Interaction**: None - no AI involvement with payments for security
@@ -231,6 +271,7 @@ Chat Active (after swipe up):
 - No AI access to financial data
 
 ### 12. REFLECT - AI Life Journal
+**Status:** Planned
 **Purpose**: Automatic daily reflection and journaling
 **Unique Feature**: AI has complete logs of everything user does on phone
 **Data Sources for Reflection**:
