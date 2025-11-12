@@ -43,3 +43,6 @@ temp/
 
 # AOSP build outputs (if any get copied here)
 out/
+
+# Ignore the Android SDK directory
+android-sdk/
