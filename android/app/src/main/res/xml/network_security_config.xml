@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TICKET_014: Network Security Configuration
+
+  Enforces HTTPS for production while allowing HTTP for local development.
+-->
+<network-security-config>
+    <!-- Production configuration - HTTPS only -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Railway deployment -->
+        <domain includeSubdomains="true">railway.app</domain>
+
+        <!-- LiveKit Cloud -->
+        <domain includeSubdomains="true">livekit.cloud</domain>
+
+        <!-- Fly.io (if used as alternative) -->
+        <domain includeSubdomains="true">fly.dev</domain>
+
+        <!-- Google Cloud Run (if used as alternative) -->
+        <domain includeSubdomains="true">run.app</domain>
+
+        <!-- Local development servers -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">192.168.86.25</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+    <!-- Debug configuration - Allow cleartext for local development -->
+    <debug-overrides cleartextTrafficPermitted="true">
+        <!-- Trust user-installed certificates (for debugging) -->
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

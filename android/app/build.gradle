@@ -1,0 +1,98 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.10'
+}
+
+android {
+    namespace 'com.stonelauncher'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.stonelauncher"
+        minSdk 26  // Android 8.0 - reasonable minimum for modern features
+        targetSdk 34  // Android 14
+        versionCode 1
+        versionName "0.1.0-alpha"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            // TICKET_014: Using local server and LiveKit Cloud
+            buildConfigField "String", "TOKEN_SERVER_URL", "\"http://192.168.86.25:8000\""
+            buildConfigField "String", "LIVEKIT_URL", "\"wss://stone-os48tc1d.livekit.cloud\""
+        }
+        debug {
+            debuggable true
+
+            // TICKET_014: Using local server and LiveKit Cloud
+            // Using Mac's IP address for physical device
+            buildConfigField "String", "TOKEN_SERVER_URL", "\"http://192.168.86.25:8000\""
+            buildConfigField "String", "LIVEKIT_URL", "\"wss://stone-os48tc1d.livekit.cloud\""
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true  // TICKET_014: Enable BuildConfig generation
+    }
+}
+
+dependencies {
+    // Kotlin
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    // AndroidX Core
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    // UI Components for TICKET_002
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // LiveKit SDK for TICKET_004
+    def livekitVersion = "2.21.1"
+    implementation "io.livekit:livekit-android:$livekitVersion"
+
+    // Kotlin Coroutines (required by LiveKit)
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+
+    // Kotlin Serialization (TICKET_007 - for tool calling JSON)
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0'
+
+    // Lifecycle components (for ViewModel and LiveData)
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+
+    // Activity KTX (for viewModels() delegate)
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+
+    // JSON parsing for RPC
+    implementation 'org.json:json:20231013'
+
+    // HTTP Client for TICKET_014 - Token server communication
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}

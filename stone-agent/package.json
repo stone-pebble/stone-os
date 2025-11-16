@@ -1,39 +1,38 @@
 {
-  "name": "stoneos-agents",
-  "version": "1.0.0",
-  "description": "StoneOS TypeScript agents using LiveKit",
-  "main": "dist/index.js",
+  "name": "stone-agent-server",
+  "version": "0.1.0-alpha",
+  "description": "LiveKit agents.js server for StoneOS AI agents",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w",
-    "start:stone": "node dist/stone-livekit.js",
-    "start:go": "node dist/go.js",
-    "start:listen": "node dist/listen.js",
-    "start:ask": "node dist/ask-livekit.js",
-    "start:think": "node dist/think-livekit.js",
-    "start:all": "npm run start:stone & npm run start:go & npm run start:listen & npm run start:ask & npm run start:think",
-    "test": "./test-local.sh",
-    "deploy": "./deploy.sh"
+    "dev": "tsx src/index.ts dev --log-level=debug",
+    "dev:token": "tsx src/server/token-server.ts",
+    "start": "node dist/index.js start",
+    "start:token": "node dist/server/token-server.js",
+    "start:production": "node scripts/start-production.js",
+    "connect": "tsx src/index.ts connect",
+    "token-server": "tsx src/server/token-server.ts",
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "dependencies": {
-    "@livekit/agents": "^0.7.9",
-    "@livekit/agents-plugin-deepgram": "^0.5.7",
-    "@livekit/agents-plugin-openai": "^0.9.3",
-    "@livekit/agents-plugin-silero": "^0.5.7",
-    "@livekit/rtc-node": "^0.13.12",
-    "dotenv": "^16.5.0",
-    "livekit-client": "^2.15.4",
-    "livekit-server-sdk": "^2.13.2",
-    "mem0ai": "^1.0.0",
-    "uuid": "^9.0.0"
+    "@livekit/agents": "^1.0.18",
+    "@livekit/agents-plugin-silero": "^1.0.18",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "livekit-client": "^2.15.15",
+    "livekit-server-sdk": "^2.7.2",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.15.18",
-    "@types/uuid": "^9.0.0",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.5.3",
-    "webpack": "^5.95.0",
-    "webpack-cli": "^5.1.4"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

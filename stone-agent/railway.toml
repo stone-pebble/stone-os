@@ -1,0 +1,17 @@
+# Railway Configuration
+# Alternative to railway.json for nixpacks provider
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "npm run start:production"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[healthcheck]
+# Railway will hit /health endpoint to verify service is running
+path = "/health"
+interval = 30
+timeout = 10

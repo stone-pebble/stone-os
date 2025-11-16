@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Stone Launcher</string>
+
+    <!-- Chat Interface (TICKET_003) -->
+    <string name="chat_input_hint">what can i do for you?</string>
+    <string name="voice_input">Voice Input</string>
+    <string name="send_message">Send Message</string>
+</resources>

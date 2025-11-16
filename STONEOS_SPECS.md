@@ -110,7 +110,7 @@ Chat Active (after swipe up):
 - "Agentic browser for the agentic internet"
 
 #### Permitted Apps Section
-**Purpose**: Access to essential third-party apps
+**Purpose**: Access to essential third-party apps outside the 12 Stone Apps
 **Display**: Flat list showing only app names (no icons)
 **Behavior**:
 - These apps run full-screen when opened
@@ -118,9 +118,79 @@ Chat Active (after swipe up):
 - Stone can be summoned but won't know app contents
 - Stone only knows which app is being used
 - Notifications from these apps feed into unlock screen summaries
-**App Discovery**:
-- Users find these apps on regular Android app store
-- Future: Approval/curation process (not needed now)
+
+**App Management Strategy**:
+Following the Wisephone approach - allowlist of vetted apps that pass criteria for non-addictive, utility-focused functionality.
+
+**Default Permitted Apps** (based on Wisephone Tool Drawer):
+
+*Productivity & Utilities:*
+- 1Password (password management)
+- Google Calendar
+- Google Drive
+- Microsoft Office apps
+- Notion
+- Evernote
+
+*Financial:*
+- Banking apps (Bank of America, Wells Fargo, Chase, etc.)
+- Venmo, Cash App, Zelle
+- PayPal
+- Quickbooks
+- Cryptocurrency wallets (Coinbase, etc.)
+
+*Transportation & Travel:*
+- Uber, Lyft
+- DoorDash, Uber Eats (delivery)
+- Delta, United, Southwest (airlines)
+- Airbnb, Hotels.com
+- Waze (though Maps is in GO app)
+
+*Communication:*
+- Signal, WhatsApp (secure messaging)
+- Zoom, Microsoft Teams (video calls)
+- Slack (work communication)
+
+*Utilities:*
+- Weather apps
+- Flashlight apps
+- Calculator apps
+- File managers
+
+*Health & Fitness:*
+- Fitness tracker apps (Fitbit, Apple Health)
+- Medical apps (MyChart, telehealth)
+
+*Education & Information:*
+- Duolingo (language learning)
+- Merlin (bird identification)
+- Educational apps
+
+*Entertainment (Utility-Focused):*
+- Spotify (though LISTEN app exists)
+- Podcasts apps
+- GuitarTuna (instrument tuning)
+- Audible/audiobooks
+
+**Explicitly Blocked Apps**:
+- Social media: Instagram, Facebook, Twitter/X, TikTok, Snapchat, Reddit
+- Shopping: Amazon shopping app, eBay app
+- Addictive games
+- News aggregators designed for infinite scroll
+- Any app designed primarily for engagement/addiction metrics
+
+**App Approval Process**:
+1. User requests app from settings or via form
+2. Manual review against criteria:
+   - Is it utility-focused vs engagement-focused?
+   - Does it serve a clear, bounded purpose?
+   - Is it essential for daily life or work?
+   - Does it avoid infinite scroll, algorithmic feeds, or engagement dark patterns?
+3. If approved, app added to permitted list
+4. User can download from Play Store and it appears in TASK → Permitted Apps
+
+**Design Philosophy**:
+Apps are permitted if they help you DO something, not if they're designed to keep you scrolling. Banking apps, transportation, productivity tools = yes. Social media, shopping, infinite feeds = no.
 
 ### 5. SET - System Settings & Identity
 
@@ -155,17 +225,16 @@ Chat Active (after swipe up):
 **Purpose**: Public domain book reader
 **Content Source**: Project Gutenberg database
 **Implementation**: AI agent crawls Project Gutenberg, builds searchable database
-**Agent Integration**: 
+**Agent Integration**:
 - Search and recommend books
 - Find specific books
 - Navigate to pages
 - Track reading progress
 - Make recommendations based on reading history
-**Note**: Stretch goal but highly desired feature
 
 ### 8. PLAN - Calendar
 **Third-Party App**: Google Calendar (initially)
-**Future Options**: Notion, Outlook, others
+**Potential Integrations**: Notion, Outlook, others
 **Display**: Grayscale Google Calendar app
 **Agent Integration**: Calendar MCP for event management
 **Capabilities**:
@@ -199,7 +268,7 @@ Chat Active (after swipe up):
 
 **Third-Party Integration**:
 - Initial apps: Slack, Teams, Gmail, Outlook, Yahoo Mail
-- Future: MCP-only without downloading apps
+- Goal: MCP-only without downloading apps
 - Unified UI sorted by person (not by platform)
 - Source of truth: Contacts database
 
@@ -210,9 +279,9 @@ Chat Active (after swipe up):
 - Encourages building out complete contact information
 
 **Implementation Approach**:
-- V0: Download select communication apps
+- Phase 1: Download select communication apps
 - Custom UI overlays for calls/texts
-- Future: Pure MCP integration without apps
+- Phase 2: Pure MCP integration without apps
 
 ### 11. FUND - Payments & Banking
 **Primary Function**: Android native Wallet/Payments
@@ -360,13 +429,13 @@ Users can choose between:
 
 ## Technical Implementation Notes
 
-### Priority Order
+### Suggested Implementation Order
 1. **Core Communications**: Connect app (phone/text) - vitally important
 2. **Essential Daily**: Listen (Spotify), Go (Maps), Tick (time)
 3. **Productivity**: Plan (Calendar), Think (Notes), Task (MCP store)
 4. **Information**: Ask (Perplexity), Set (Settings + Identity)
 5. **Financial**: Fund (Payments + Banking)
-6. **Advanced**: Look (Books - stretch goal), Reflect (Journal)
+6. **Advanced**: Look (Books), Reflect (Journal)
 
 ### Critical Success Factors
 1. **Seamless app embedding** with root access
@@ -383,10 +452,10 @@ Users can choose between:
 3. **MCP Discovery**: How to build and maintain MCP marketplace?
 4. **Banking Security**: Compliance requirements for financial apps?
 
-## Future Notes
+## Additional Documentation Needed
 
-- **Agent Behavior Specification**: Need separate documentation for how Stone agent personality and interaction patterns work
-- **MCP Registry**: Build out discovery and approval process for third-party MCPs
+- **Agent Behavior Specification**: Separate documentation for how Stone agent personality and interaction patterns work
+- **MCP Registry**: Discovery and approval process for third-party MCPs
 - **Privacy Framework**: Detailed policies for data retention and user control
 
 ## Success Metrics
